@@ -1,12 +1,10 @@
 import { Router, Request, Response } from "express";
-const asyncHandler = require("express-async-handler");
+import asyncHandler from "express-async-handler";
 
 const router = Router();
 
-const PORT = process.env.PORT || 5000;
-
 // Array to store products (as a mock database)
-let products = [
+const products = [
   { id: 1, name: "Product1" },
   { id: 2, name: "Product2" },
   { id: 3, name: "Product3" },
@@ -42,7 +40,7 @@ let products = [
  *         description: product created
  */
 router.post(
-  "/products",
+  "/",
   asyncHandler(async (req: Request, res: Response) => {
     const product = { id: products.length + 1, name: req.body.name };
     products.push(product);
@@ -60,7 +58,7 @@ router.post(
  *         description: A list of products
  */
 router.get(
-  "/products",
+  "/",
   asyncHandler(async (req: Request, res: Response) => {
     res.json(products);
   })
@@ -85,11 +83,11 @@ router.get(
  *         description: product not found
  */
 router.get(
-  "/products/:id",
+  "/:id",
   asyncHandler(async (req: Request, res: Response) => {
     const product = products.find((i) => i.id === parseInt(req.params.id));
-    if (!product) return res.status(404).send("product not found");
-    res.json(product);
+    if (!product) res.status(404).send("product not found");
+    else res.json(product);
   })
 );
 
@@ -123,12 +121,14 @@ router.get(
  *         description: product not found
  */
 router.put(
-  "/products/:id",
+  "/:id",
   asyncHandler(async (req: Request, res: Response) => {
     const product = products.find((i) => i.id === parseInt(req.params.id));
-    if (!product) return res.status(404).send("product not found");
-    Object.assign(product, { id: req.body.id, name: req.body.name });
-    res.json(product);
+    if (!product) res.status(404).send("product not found");
+    else {
+      Object.assign(product, { id: req.body.id, name: req.body.name });
+      res.json(product);
+    }
   })
 );
 
@@ -151,14 +151,16 @@ router.put(
  *         description: product not found
  */
 router.delete(
-  "/products/:id",
+  "/:id",
   asyncHandler(async (req: Request, res: Response) => {
     const productIndex = products.findIndex(
       (i) => i.id === parseInt(req.params.id)
     );
-    if (productIndex === -1) return res.status(404).send("product not found");
-    products.splice(productIndex, 1);
-    res.status(204).send();
+    if (productIndex === -1) res.status(404).send("product not found");
+    else {
+      products.splice(productIndex, 1);
+      res.status(204).send();
+    }
   })
 );
 

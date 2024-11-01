@@ -14,11 +14,14 @@
   "dependencies": {
     "express": "^4.21.1",
     "express-async-handler": "^1.2.0",
-    "nodemon": "^3.1.7",
-    "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.1"
+    "ts-zod-decorators": "^1.7.1",
+    "utils-decorators": "^2.0.9",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
+    "nodemon": "^3.1.7",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
     "@types/express": "^5.0.0",
     "@types/node": "^22.8.1",
     "ts-node": "^10.9.2",

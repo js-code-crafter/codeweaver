@@ -20,6 +20,22 @@ function loadRouters(routerPath: string, basePath: string = "") {
       file.endsWith(".service.js") ||
       // Exclude TypeScript service files
       file.endsWith(".service.ts") ||
+      // Exclude JavaScript middleware files
+      file.endsWith(".middleware.js") ||
+      // Exclude TypeScript middleware files
+      file.endsWith(".middleware.ts") ||
+      // Exclude JavaScript error middleware files
+      file.endsWith(".error.js") ||
+      // Exclude TypeScript error middleware files
+      file.endsWith(".error.ts") ||
+      // Exclude JavaScript service files
+      file.endsWith(".decorator.js") ||
+      // Exclude TypeScript service files
+      file.endsWith(".decorator.ts") ||
+      // Exclude JavaScript DTO files
+      file.endsWith(".dto.js") ||
+      // Exclude TypeScript DTO files
+      file.endsWith(".dto.ts") ||
       // Exclude JavaScript test specification files
       file.endsWith(".spec.js") ||
       // Exclude TypeScript test specification files
@@ -52,6 +68,9 @@ function loadRouters(routerPath: string, basePath: string = "") {
 }
 
 const app = express();
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+//app.use(cors());
 
 // Automatically import all routers from the /src/routers directory
 const routersPath = path.join(__dirname, "/routers");
