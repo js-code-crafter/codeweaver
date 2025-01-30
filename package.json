@@ -1,16 +1,35 @@
 {
-  "name": "codebase",
-  "version": "1.0.0",
+  "name": "codeweaver",
+  "version": "1.0.15",
   "main": "src/app.ts",
+  "bin": {
+    "create-codeweaver-app": "./command.js"
+  },
   "scripts": {
     "start": "nodemon src/app.ts",
-    "build": "tsc src/app.ts",
+    "build": "tsc",
     "serve": "node dist/app.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "keywords": [
+    "codeweaver",
+    "node framework",
+    "js framework",
+    "javascript",
+    "typescript",
+    "code",
+    "weaver",
+    "framework",
+    "boilerplate",
+    "bootstrap",
+    "lightweight",
+    "nested routers",
+    "decorator",
+    "swagger",
+    "zod"
+  ],
+  "author": "Ehsan Afzali",
+  "license": "MIT",
+  "description": "A lightweight framework built on top of Express and TypeScript",
   "dependencies": {
     "express": "^4.21.1",
     "express-async-handler": "^1.2.0",
@@ -19,11 +38,11 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.7",
     "nodemon": "^3.1.7",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
-    "@types/express": "^5.0.0",
-    "@types/node": "^22.8.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.3"
   }

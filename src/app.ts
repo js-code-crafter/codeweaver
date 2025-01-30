@@ -70,6 +70,7 @@ function loadRouters(routerPath: string, basePath: string = "") {
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 //app.use(cors());
 
 // Automatically import all routers from the /src/routers directory
