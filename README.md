@@ -29,6 +29,7 @@ To get started with the project, follow these steps:
 1. **Clone the repository**:
 
    ```bash
+   npm install -g codeweaver
    npx create-codeweaver-app my-app
    cd my-app
    ```
