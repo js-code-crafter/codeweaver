@@ -1,9 +1,18 @@
-import express from "express";
+import express, {
+  ErrorRequestHandler,
+  NextFunction,
+  Request,
+  Response,
+} from "express";
 import fs from "fs";
 import path from "path";
 import config from "./config";
 
-// Function to load routers recursively
+/**
+ * Recursively loads Express routers from directory
+ * @param {string} routerPath - Directory path to scan
+ * @param {string} [basePath=""] - Base route path
+ */
 function loadRouters(routerPath: string, basePath: string = "") {
   fs.readdirSync(routerPath).forEach((file) => {
     // Check if the filename should be excluded based on certain criteria
@@ -84,6 +93,11 @@ if (config.devMode) {
   const swaggerDocs = swaggerJsDoc(config.swaggerOptions);
   app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 }
+
+// General error handler
+app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
+  res.status(500).json(err);
+});
 
 // Start the server
 app.listen(config.port, () => {

@@ -1,20 +1,10 @@
 import { Router, Request, Response } from "express";
 import asyncHandler from "express-async-handler";
+import ProductController from "./product.controller";
+import { sendError } from "../../utilities";
 
 const router = Router();
-
-// Array to store products (as a mock database)
-const products = [
-  { id: 1, name: "Product1" },
-  { id: 2, name: "Product2" },
-  { id: 3, name: "Product3" },
-  { id: 4, name: "Product4" },
-  { id: 5, name: "Product5" },
-  { id: 6, name: "Product6" },
-  { id: 7, name: "Product7" },
-  { id: 8, name: "Product8" },
-  { id: 9, name: "Product9" },
-];
+const productController = new ProductController();
 
 // CRUD Routes
 
@@ -22,28 +12,59 @@ const products = [
  * @swagger
  * /products:
  *   post:
- *     summary: Create an product
+ *     summary: Create a product
  *     description: Create a new product.
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *               description:
- *                 type: string
+ *     consumes:
+ *       - application/json
+ *     produces:
+ *       - application/json
+ *     parameters:
+ *       - in: body
+ *         name: product
+ *         required: true
+ *         schema:
+ *           type: object
+ *           required:
+ *             - name
+ *             - price
+ *             - category
+ *             - stock
+ *           properties:
+ *             id:
+ *               type: integer
+ *               example: 1
+ *             name:
+ *               type: string
+ *               example: "New Product"
+ *             price:
+ *               type: number
+ *               example: 1499
+ *             description:
+ *               type: string
+ *               example: "This is a detailed description."
+ *             category:
+ *               type: string
+ *               enum:
+ *                 - Electronics
+ *                 - Appliances
+ *                 - Sports
+ *                 - Kitchen
+ *                 - Mobile Accessories
+ *                 - Computer Accessories
+ *                 - Home Appliances
+ *                 - Books
+ *               example: "Electronics"
+ *             stock:
+ *               type: integer
+ *               example: 50
  *     responses:
  *       201:
- *         description: product created
+ *         description: Product created
  */
 router.post(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
-    const product = { id: products.length + 1, name: req.body.name };
-    products.push(product);
+    const product = await productController.create(req.body);
     res.status(201).json(product);
   })
 );
@@ -60,7 +81,7 @@ router.post(
 router.get(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
-    res.json(products);
+    res.status(200).json(await productController.getAll());
   })
 );
 
@@ -68,7 +89,7 @@ router.get(
  * @swagger
  * /products/{id}:
  *   get:
- *     summary: Get an product by ID
+ *     summary: Get a product by ID
  *     parameters:
  *       - name: id
  *         in: path
@@ -78,16 +99,15 @@ router.get(
  *           type: integer
  *     responses:
  *       200:
- *         description: An product object
- *       404:
- *         description: product not found
+ *         description: A product object
  */
 router.get(
   "/:id",
   asyncHandler(async (req: Request, res: Response) => {
-    const product = products.find((i) => i.id === parseInt(req.params.id));
-    if (!product) res.status(404).send("product not found");
-    else res.json(product);
+    const product = await productController.get(req.params.id);
+
+    if ("id" in product == false) sendError(res, product);
+    else res.status(200).json(product);
   })
 );
 
@@ -95,7 +115,12 @@ router.get(
  * @swagger
  * /products/{id}:
  *   put:
- *     summary: Update an product
+ *     summary: Update a product
+ *     description: Update an existing product.
+ *     consumes:
+ *       - application/json
+ *     produces:
+ *       - application/json
  *     parameters:
  *       - name: id
  *         in: path
@@ -103,32 +128,49 @@ router.get(
  *         description: The ID of the product to update
  *         schema:
  *           type: integer
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *               description:
- *                 type: string
+ *       - in: body
+ *         name: product
+ *         required: true
+ *         schema:
+ *           type: object
+ *           properties:
+ *             name:
+ *               type: string
+ *               example: "Updated Product"
+ *             price:
+ *               type: number
+ *               example: 2000
+ *             description:
+ *               type: string
+ *               example: "This is a detailed description."
+ *             category:
+ *               type: string
+ *               enum:
+ *                 - Electronics
+ *                 - Appliances
+ *                 - Sports
+ *                 - Kitchen
+ *                 - Mobile Accessories
+ *                 - Computer Accessories
+ *                 - Home Appliances
+ *                 - Books
+ *               example: "Sports"
+ *             stock:
+ *               type: integer
+ *               example: 70
  *     responses:
  *       200:
- *         description: product updated
+ *         description: Product updated
  *       404:
- *         description: product not found
+ *         description: Product not found
  */
 router.put(
   "/:id",
   asyncHandler(async (req: Request, res: Response) => {
-    const product = products.find((i) => i.id === parseInt(req.params.id));
-    if (!product) res.status(404).send("product not found");
-    else {
-      Object.assign(product, { id: req.body.id, name: req.body.name });
-      res.json(product);
-    }
+    const product = await productController.update(req.params.id, req.body);
+
+    if ("id" in product == false) sendError(res, product);
+    else res.status(200).json(product);
   })
 );
 
@@ -136,7 +178,7 @@ router.put(
  * @swagger
  * /products/{id}:
  *   delete:
- *     summary: Delete an product
+ *     summary: Delete a product
  *     parameters:
  *       - name: id
  *         in: path
@@ -147,20 +189,18 @@ router.put(
  *     responses:
  *       204:
  *         description: product deleted
+ *       400:
+ *         description: invalid request
  *       404:
  *         description: product not found
  */
 router.delete(
   "/:id",
   asyncHandler(async (req: Request, res: Response) => {
-    const productIndex = products.findIndex(
-      (i) => i.id === parseInt(req.params.id)
-    );
-    if (productIndex === -1) res.status(404).send("product not found");
-    else {
-      products.splice(productIndex, 1);
-      res.status(204).send();
-    }
+    const product = await productController.delete(req.params.id);
+
+    if ("id" in product == false) sendError(res, product);
+    else res.status(200).json(product);
   })
 );
 

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import asyncHandler from "express-async-handler";
 import UserController from "./user.controller";
+import { sendError } from "../../utilities";
 
 const router = Router();
 const userController = new UserController();
@@ -11,70 +12,87 @@ const userController = new UserController();
  *   post:
  *     summary: Create a user
  *     description: Create a new user.
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - username
- *               - email
- *               - password
- *             properties:
- *               username:
- *                 type: string
- *               email:
- *                 type: string
- *               password:
- *                 type: string
- *             example: # Sample object
- *               username: JessicaSmith
- *               email: william.howard.taft@my-own-personal-domain.com
- *               password: password123
+ *     consumes:
+ *       - application/json
+ *     produces:
+ *       - application/json
+ *     parameters:
+ *       - in: body
+ *         name: user
+ *         required: true
+ *         schema:
+ *           type: object
+ *           required:
+ *             - username
+ *             - email
+ *             - password
+ *           properties:
+ *             username:
+ *               type: string
+ *               minLength: 3
+ *               example: JessicaSmith
+ *             email:
+ *               type: string
+ *               format: email
+ *               example: user@example.com
+ *             password:
+ *               type: string
+ *               minLength: 6
+ *               example: securePassword123
  *     responses:
  *       201:
- *         description: product created
+ *         description: User created
  */
 router.post(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
-    const result = await userController.createUser(req.body);
-    res.status(201).json({ message: result });
+    const user = await userController.create(req.body);
+    res.status(201).json(user);
   })
 );
 
 /**
  * @swagger
- * /user:
+ * /users/{id}:
  *   get:
- *     summary: Get user home
- *     description: Returns the user home page.
+ *     summary: Get an user by ID
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: The ID of the product
+ *         schema:
+ *           type: integer
  *     responses:
  *       200:
- *         description: User home page
+ *         description: An user object
+ *       404:
+ *         description: user not found
+ */
+router.get(
+  "/:id",
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = await userController.get(req.params.id);
+
+    if ("id" in user == false) sendError(res, user);
+    else res.status(200).json(user);
+  })
+);
+
+/**
+ * @swagger
+ * /users:
+ *   get:
+ *     summary: Get users
+ *     description: Returns a list of user objects.
+ *     responses:
+ *       200:
+ *         description: A list of user objects
  */
 router.get(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
-    res.send("User Home");
-  })
-);
-
-/**
- * @swagger
- * /user/profile:
- *   get:
- *     summary: Get user profile
- *     description: Returns user profile information.
- *     responses:
- *       200:
- *         description: User profile information
- */
-router.get(
-  "/profile",
-  asyncHandler(async (req: Request, res: Response) => {
-    res.send("User Profile");
+    res.status(200).json(await userController.getAll());
   })
 );
 

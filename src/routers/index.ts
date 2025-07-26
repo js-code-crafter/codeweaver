@@ -11,12 +11,12 @@ const router = Router();
  *     description: Returns the home page.
  *     responses:
  *       200:
- *         description: home page
+ *         description: Hi there!
  */
 router.get(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
-    res.send("Home");
+    res.send("Hi there!");
   })
 );
 

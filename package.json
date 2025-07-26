@@ -31,19 +31,19 @@
   "license": "MIT",
   "description": "A lightweight framework built on top of Express and TypeScript",
   "dependencies": {
-    "express": "^4.21.1",
+    "express": "^5.1.0",
     "express-async-handler": "^1.2.0",
     "ts-zod-decorators": "^1.7.1",
-    "utils-decorators": "^2.0.9",
-    "zod": "^3.23.8"
+    "utils-decorators": "^2.10.0",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@types/express": "^5.0.0",
-    "@types/node": "^22.10.7",
-    "nodemon": "^3.1.7",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.1.0",
+    "nodemon": "^3.1.10",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "ts-node": "^10.9.2",
-    "typescript": "^5.6.3"
+    "typescript": "^5.8.3"
   }
 }

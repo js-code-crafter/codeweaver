@@ -92,23 +92,108 @@ Example of a basic router:
 ```typescript
 import { Router, Request, Response } from "express";
 import asyncHandler from "express-async-handler";
+import UserController from "./user.controller";
+import { sendError } from "../../utility";
 
 const router = Router();
+const userController = new UserController();
 
 /**
  * @swagger
- * /:
+ * /users:
+ *   post:
+ *     summary: Create a user
+ *     description: Create a new user.
+ *     consumes:
+ *       - application/json
+ *     produces:
+ *       - application/json
+ *     parameters:
+ *       - in: formData
+ *         name: username
+ *         description: Unique username
+ *         required: true
+ *         schema:
+ *           type: string
+ *           minLength: 3
+ *           example: JessicaSmith
+ *       - in: formData
+ *         name: email
+ *         description: Valid email address
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: email
+ *           example: user@example.com
+ *       - in: formData
+ *         name: password
+ *         description: Strong password
+ *         required: true
+ *         schema:
+ *           type: string
+ *           minLength: 6
+ *           example: securePassword123
+ *     examples:
+ *       basic:
+ *         value: {
+ *           "username": "JohnDoe",
+ *           "email": "john.doe@example.com",
+ *           "password": "securepass123"
+ *         }
+ *     responses:
+ *       201:
+ *         description: The user is created
+ */
+router.post(
+  "/",
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = await userController.create(req.body);
+    res.status(201).json(user);
+  })
+);
+
+/**
+ * @swagger
+ * /users/{id}:
  *   get:
- *     summary: Get the home page
- *     description: Returns the home page.
+ *     summary: Get an user by ID
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: The ID of the product
+ *         schema:
+ *           type: integer
  *     responses:
  *       200:
- *         description: home page
+ *         description: An user object
+ *       404:
+ *         description: user not found
+ */
+router.get(
+  "/:id",
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = await userController.get(req.params.id);
+
+    if ("id" in user == false) sendError(res, user);
+    else res.status(200).json(user);
+  })
+);
+
+/**
+ * @swagger
+ * /users:
+ *   get:
+ *     summary: Get users
+ *     description: Returns the user home page.
+ *     responses:
+ *       200:
+ *         description: User home page
  */
 router.get(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
-    res.send("Home");
+    res.status(200).json(await userController.getAll());
   })
 );
 
@@ -132,13 +217,25 @@ Here’s a brief breakdown of key components used in the `UserController`:
 ```typescript
 import { z } from "zod";
 
-export const createUserDto = z.object({
+/**
+ * Zod schema for User entity
+ * @typedef {Object} ZodUser
+ * @property {number} id - Unique identifier (min 1)
+ * @property {string} username - Username (min 3 chars)
+ * @property {string} email - Valid email format
+ * @property {string} password - Password (min 6 chars)
+ */
+export const ZodUser = z.object({
+  id: z.number().min(1).int(),
   username: z.string().min(3),
   email: z.string().email(),
   password: z.string().min(6),
 });
 
-export type CreateUser = z.infer<typeof createUserDto>;
+export const ZodUserCreationDto = ZodUser.omit({ id: true });
+
+export type User = z.infer<typeof ZodUser>;
+export type UserCreationDto = z.infer<typeof ZodUserCreationDto>;
 ```
 
 - **Throttling and Rate Limiting**: The `@rateLimit` decorator is applied to safeguard the application's endpoints from abuse by limiting how frequently a particular method can be invoked.
@@ -151,36 +248,161 @@ Here is a quick reference to the UserController in practice:
 
 ```typescript
 import { Validate, ZodInput } from "ts-zod-decorators";
-import { createUserDto, CreateUser } from "./dto/user.dto";
-import { onError, rateLimit } from "utils-decorators";
+import { User, ZodUserCreationDto, UserCreationDto } from "./dto/user.dto";
+import { onError, rateLimit, throttle } from "utils-decorators";
+import { ResponseError } from "../../type";
+import { tryParseId } from "../../utility";
+
+// Array to store users (as a mock database)
+const users = [
+  {
+    id: 1,
+    username: "johndoe",
+    email: "johndoe@gmail.com",
+    password: "S3cur3P@ssw0rd",
+  },
+  {
+    id: 2,
+    username: "janesmith",
+    email: "janesmith@yahoo.com",
+    password: "P@ssw0rd2024",
+  },
+  {
+    id: 3,
+    username: "michael89",
+    email: "michael89@hotmail.com",
+    password: "M1chael!2024",
+  },
+  {
+    id: 4,
+    username: "lisa.wong",
+    email: "lisa.wong@example.com",
+    password: "L1saW0ng!2024",
+  },
+  {
+    id: 5,
+    username: "alex_k",
+    email: "alex.k@gmail.com",
+    password: "A1ex#Key2024",
+  },
+  {
+    id: 6,
+    username: "emilyj",
+    email: "emilyj@hotmail.com",
+    password: "Em!ly0101",
+  },
+  {
+    id: 7,
+    username: "davidparker",
+    email: "david.parker@yahoo.com",
+    password: "D@v!d2024",
+  },
+  {
+    id: 8,
+    username: "sophia_m",
+    email: "sophia.m@gmail.com",
+    password: "Sophi@2024",
+  },
+  {
+    id: 9,
+    username: "chrisw",
+    email: "chrisw@outlook.com",
+    password: "Chri$Wong21",
+  },
+  {
+    id: 10,
+    username: "natalie_b",
+    email: "natalie_b@gmail.com",
+    password: "N@talie#B2024",
+  },
+];
 
 function exceedHandler() {
-  throw new Error("Too much call in allowed window");
+  const message = "Too much call in allowed window";
+
+  throw new Error(message, {
+    cause: { status: 500, message } satisfies ResponseError,
+  });
 }
 
-function errorHandler(e: Error): void {
-  console.error(e);
+function getUserErrorHandler(e: Error) {
+  const message = "User not found.";
+
+  throw new Error(message, {
+    cause: { status: 404, message, details: e.message } satisfies ResponseError,
+  });
 }
 
+/**
+ * Controller for handling user-related operations
+ * @class UserController
+ * @desc Provides methods for user management including CRUD operations
+ */
 export default class UserController {
-  //constructor(private readonly userService: UserService) { }
+  // constructor(private readonly userService: UserService) { }
 
-  // Throttle the createUser method to 1 request per 200 milliseconds
   @rateLimit({
     timeSpanMs: 60000,
     allowedCalls: 300,
     exceedHandler,
   })
-  @onError({
-    func: errorHandler,
-  })
   @Validate
-  public async createUser(
-    @ZodInput(CreateUserDto) data: CreateUser
-  ): Promise<string> {
-    // Here you can include logic to save user to database
-    console.log("Creating user:", data);
-    return "User created successfully";
+  /**
+   * Create a new user
+   * @param {UserCreationDto} user - User creation data validated by Zod schema
+   * @returns {Promise<void>}
+   * @throws {ResponseError} 500 - When rate limit exceeded
+   * @throws {ResponseError} 400 - Invalid input data
+   */
+  public async create(@ZodInput(ZodUserCreationDto) user: UserCreationDto) {
+    users.push({ ...user, id: users.length + 1 } satisfies User);
+  }
+
+  @onError({
+    func: getUserErrorHandler,
+  })
+  @rateLimit({
+    timeSpanMs: 60000,
+    allowedCalls: 300,
+    exceedHandler,
+  })
+  /**
+   * Get user by ID
+   * @param {string} id - User ID as string
+   * @returns {Promise<User | ResponseError>} User details or error object
+   * @throws {ResponseError} 404 - User not found
+   * @throws {ResponseError} 400 - Invalid ID format
+   */
+  public async get(id: string): Promise<User | ResponseError> {
+    const userId = tryParseId(id);
+    if (typeof userId != "number") return userId satisfies ResponseError;
+    const user = users.find((user) => user.id === userId);
+
+    if (!user)
+      return {
+        status: 404,
+        message: "User dose not exist.",
+      } satisfies ResponseError;
+
+    return user satisfies User;
+  }
+
+  @throttle(20000)
+  @rateLimit({
+    timeSpanMs: 60000,
+    allowedCalls: 300,
+    exceedHandler,
+  })
+  /**
+   * Get all users with masked passwords
+   * @returns {Promise<User[]>} List of users with hidden password fields
+   * @throws {ResponseError} 500 - When rate limit exceeded
+   */
+  public async getAll(): Promise<User[]> {
+    return users.map((user) => ({
+      ...user,
+      password: "?",
+    }));
   }
 }
 ```
