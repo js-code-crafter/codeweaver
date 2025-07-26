@@ -2,7 +2,7 @@
 
 ## Overview
 
-**Codeweaver** is a lightweight framework built on top of `Express` and `TypeScript`, integrating `Swagger` for API documentation. The application utilizes `async handlers` for improved error management and follows a modular structure for routers, enabling easy expansion and organization of the application.
+**Codeweaver** is a lightweight microframework built on top of `Express` and `TypeScript`, integrating `Swagger` for API documentation. The application utilizes `async handlers` for improved error management and follows a modular structure for routers, enabling easy expansion and organization of the application.
 
 ## Features
 
@@ -93,7 +93,7 @@ Example of a basic router:
 import { Router, Request, Response } from "express";
 import asyncHandler from "express-async-handler";
 import UserController from "./user.controller";
-import { sendError } from "../../utility";
+import { sendError } from "../../utilities";
 
 const router = Router();
 const userController = new UserController();
@@ -109,40 +109,31 @@ const userController = new UserController();
  *     produces:
  *       - application/json
  *     parameters:
- *       - in: formData
- *         name: username
- *         description: Unique username
+ *       - in: body
+ *         name: user
  *         required: true
  *         schema:
- *           type: string
- *           minLength: 3
- *           example: JessicaSmith
- *       - in: formData
- *         name: email
- *         description: Valid email address
- *         required: true
- *         schema:
- *           type: string
- *           format: email
- *           example: user@example.com
- *       - in: formData
- *         name: password
- *         description: Strong password
- *         required: true
- *         schema:
- *           type: string
- *           minLength: 6
- *           example: securePassword123
- *     examples:
- *       basic:
- *         value: {
- *           "username": "JohnDoe",
- *           "email": "john.doe@example.com",
- *           "password": "securepass123"
- *         }
+ *           type: object
+ *           required:
+ *             - username
+ *             - email
+ *             - password
+ *           properties:
+ *             username:
+ *               type: string
+ *               minLength: 3
+ *               example: JessicaSmith
+ *             email:
+ *               type: string
+ *               format: email
+ *               example: user@example.com
+ *             password:
+ *               type: string
+ *               minLength: 6
+ *               example: securePassword123
  *     responses:
  *       201:
- *         description: The user is created
+ *         description: User created
  */
 router.post(
   "/",
@@ -185,10 +176,10 @@ router.get(
  * /users:
  *   get:
  *     summary: Get users
- *     description: Returns the user home page.
+ *     description: Returns a list of user objects.
  *     responses:
  *       200:
- *         description: User home page
+ *         description: A list of user objects
  */
 router.get(
   "/",
@@ -249,9 +240,9 @@ Here is a quick reference to the UserController in practice:
 ```typescript
 import { Validate, ZodInput } from "ts-zod-decorators";
 import { User, ZodUserCreationDto, UserCreationDto } from "./dto/user.dto";
-import { onError, rateLimit, throttle } from "utils-decorators";
-import { ResponseError } from "../../type";
-import { tryParseId } from "../../utility";
+import { onError, rateLimit, timeout } from "utils-decorators";
+import { ResponseError } from "../../types";
+import { tryParseId } from "../../utilities";
 
 // Array to store users (as a mock database)
 const users = [
@@ -387,7 +378,7 @@ export default class UserController {
     return user satisfies User;
   }
 
-  @throttle(20000)
+  @timeout(20000)
   @rateLimit({
     timeSpanMs: 60000,
     allowedCalls: 300,
@@ -399,10 +390,13 @@ export default class UserController {
    * @throws {ResponseError} 500 - When rate limit exceeded
    */
   public async getAll(): Promise<User[]> {
-    return users.map((user) => ({
-      ...user,
-      password: "?",
-    }));
+    return users.map(
+      (user) =>
+        ({
+          ...user,
+          password: "?",
+        } satisfies User)
+    );
   }
 }
 ```
