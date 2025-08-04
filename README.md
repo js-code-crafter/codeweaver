@@ -2,25 +2,19 @@
 
 ## Overview
 
-**Codeweaver** is a lightweight microframework built on top of `Express` and `TypeScript`, integrating `Swagger` for API documentation. The application utilizes `async handlers` for improved error management and follows a modular structure for routers, enabling easy expansion and organization of the application.
+**Codeweaver** is a lightweight microframework created with `Express`, `TypeScript`, and `Zod` (v4), seamlessly integrated with `Swagger` for comprehensive API documentation. Its modular architecture for routers promotes scalability and organized development, making it easy to expand and maintain.
 
-## Features
-
-- **Modular Router Structure**: Each router is automatically imported and mounted, providing clean separation of endpoints and logic.
-- **Express Framework**: A lightweight web application framework for building web applications in Node.js.
-- **TypeScript**: Provides strong typing for better development experience and less runtime errors.
-- **Swagger Integration**: Automatically generates interactive API documentation, making it easy for developers and consumers to understand the available endpoints.
-- **Async Handlers**: Supports async/await syntax for writing cleaner and more maintainable asynchronous code without deeply nested callbacks.
-
-## Technologies Used
+## Features and Technologies Used
 
 - **Node.js**
-- **Express**
-- **TypeScript**
-- **Zod** (for input validation)
-- **ts-zod-decorators** (for validation using Zod with decorators)
-- **utils-decorators** (for middleware utilities like throttling and error handling)
-- **Swagger** (for API documentation)
+- **Express**: A lightweight web framework for building server-side applications in Node.js.
+- **TypeScript**: Adds strong typing for enhanced development experience and reduced runtime errors.
+- **Modular Router Structure**: Automates importing and mounting routers, ensuring a clean separation of endpoints and logic for easier scalability.
+- **Swagger Integration**: Automatically generates interactive API documentation, facilitating easier understanding of available endpoints for developers and consumers.
+- **Async Handlers**: Utilizes async/await syntax for cleaner, more maintainable asynchronous code without callback nesting.
+- **Zod**: Implements schema validation for input data.
+- **ts-zod-decorators**: Enables validation using Zod schemas through decorators.
+- **utils-decorators**: Provides middleware utilities such as throttling and error handling for a more robust application.
 
 ## Installation
 
@@ -52,6 +46,7 @@ To get started with the project, follow these steps:
 
    ```bash
    npm run build
+   npm run serve
    ```
 
 ## Sample Project Structure
@@ -85,7 +80,7 @@ To get started with the project, follow these steps:
 
 Each router file in the `/routers` directory is organized to handle related endpoints. The `app.ts` file automatically imports all routers and mounts them to the main Express application, making it simple to add new routes without modifying central files.
 
-Files that end with `.controller`, `.service`, `.spec`, `.dto`, `.middleware`, `.error`, or `.decorator`, as well as those that start with `_` or `@`, are excluded from the router list and can be utilized for various other purposes within the application.
+Files that end with `.controller`, `.service`, `.spec`, `.dto`, `.middleware`, `.error`, `.class`, or `.decorator`, as well as those that start with `_` or `@`, are excluded from the router list and can be utilized for various other purposes within the application.
 
 Example of a basic router:
 
@@ -93,7 +88,7 @@ Example of a basic router:
 import { Router, Request, Response } from "express";
 import asyncHandler from "express-async-handler";
 import UserController from "./user.controller";
-import { sendError } from "../../utilities";
+import { sendError } from "@src/utilities";
 
 const router = Router();
 const userController = new UserController();
@@ -147,7 +142,7 @@ router.post(
  * @swagger
  * /users/{id}:
  *   get:
- *     summary: Get an user by ID
+ *     summary: Get a user by ID
  *     parameters:
  *       - name: id
  *         in: path
@@ -157,7 +152,7 @@ router.post(
  *           type: integer
  *     responses:
  *       200:
- *         description: An user object
+ *         description: A user object
  *       404:
  *         description: user not found
  */
@@ -167,7 +162,7 @@ router.get(
     const user = await userController.get(req.params.id);
 
     if ("id" in user == false) sendError(res, user);
-    else res.status(200).json(user);
+    else res.json(user);
   })
 );
 
@@ -184,7 +179,7 @@ router.get(
 router.get(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
-    res.status(200).json(await userController.getAll());
+    res.json(await userController.getAll());
   })
 );
 
@@ -238,11 +233,11 @@ By using a well-organized controller structure, this project makes it easier to 
 Here is a quick reference to the UserController in practice:
 
 ```typescript
-import { Validate, ZodInput } from "ts-zod-decorators";
 import { User, ZodUserCreationDto, UserCreationDto } from "./dto/user.dto";
 import { onError, rateLimit, timeout } from "utils-decorators";
-import { ResponseError } from "../../types";
-import { tryParseId } from "../../utilities";
+import { Validate, ZodInput } from "@pkg/ts-zod-decorators";
+import { ResponseError } from "@src/types";
+import { tryParseId } from "@src/utilities";
 
 // Array to store users (as a mock database)
 const users = [

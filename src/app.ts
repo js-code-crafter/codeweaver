@@ -48,7 +48,11 @@ function loadRouters(routerPath: string, basePath: string = "") {
       // Exclude JavaScript test specification files
       file.endsWith(".spec.js") ||
       // Exclude TypeScript test specification files
-      file.endsWith(".spec.ts")
+      file.endsWith(".spec.ts") ||
+      // Exclude JavaScript test specification files
+      file.endsWith(".class.js") ||
+      // Exclude TypeScript test specification files
+      file.endsWith(".class.ts")
     )
       // If any of the above conditions are true, exit the function early
       return;

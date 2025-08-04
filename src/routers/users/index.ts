@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import asyncHandler from "express-async-handler";
 import UserController from "./user.controller";
-import { sendError } from "../../utilities";
+import { sendError } from "@/utilities";
 
 const router = Router();
 const userController = new UserController();
@@ -55,7 +55,7 @@ router.post(
  * @swagger
  * /users/{id}:
  *   get:
- *     summary: Get an user by ID
+ *     summary: Get a user by ID
  *     parameters:
  *       - name: id
  *         in: path
@@ -65,7 +65,7 @@ router.post(
  *           type: integer
  *     responses:
  *       200:
- *         description: An user object
+ *         description: A user object
  *       404:
  *         description: user not found
  */
@@ -75,7 +75,7 @@ router.get(
     const user = await userController.get(req.params.id);
 
     if ("id" in user == false) sendError(res, user);
-    else res.status(200).json(user);
+    else res.json(user);
   })
 );
 
@@ -92,7 +92,7 @@ router.get(
 router.get(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
-    res.status(200).json(await userController.getAll());
+    res.json(await userController.getAll());
   })
 );
 

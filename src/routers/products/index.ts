@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import asyncHandler from "express-async-handler";
 import ProductController from "./product.controller";
-import { sendError } from "../../utilities";
+import { sendError } from "@/utilities";
 
 const router = Router();
 const productController = new ProductController();
@@ -81,7 +81,7 @@ router.post(
 router.get(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
-    res.status(200).json(await productController.getAll());
+    res.json(await productController.getAll());
   })
 );
 
@@ -107,7 +107,7 @@ router.get(
     const product = await productController.get(req.params.id);
 
     if ("id" in product == false) sendError(res, product);
-    else res.status(200).json(product);
+    else res.json(product);
   })
 );
 
@@ -170,7 +170,7 @@ router.put(
     const product = await productController.update(req.params.id, req.body);
 
     if ("id" in product == false) sendError(res, product);
-    else res.status(200).json(product);
+    else res.json(product);
   })
 );
 
@@ -200,7 +200,7 @@ router.delete(
     const product = await productController.delete(req.params.id);
 
     if ("id" in product == false) sendError(res, product);
-    else res.status(200).json(product);
+    else res.json(product);
   })
 );
 

@@ -1,4 +1,3 @@
-import { Validate, ZodInput } from "ts-zod-decorators";
 import { onError, rateLimit, timeout } from "utils-decorators";
 import {
   Product,
@@ -7,8 +6,9 @@ import {
   ZodProductCreationDto,
   ZodProductUpdateDto,
 } from "./dto/product.dto";
-import { ResponseError } from "../../types";
-import { tryParseId } from "../../utilities";
+import { Validate, ZodInput } from "@pkg/ts-zod-decorators";
+import { ResponseError } from "@/types";
+import { tryParseId } from "@/utilities";
 
 // Array to store products (as a mock database)
 const products: Product[] = [

@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import asyncHandler from "express-async-handler";
 import OrderController from "./order.controller";
-import { sendError } from "../../utilities";
+import { sendError } from "@/utilities";
 
 const router = Router();
 const orderController = new OrderController();

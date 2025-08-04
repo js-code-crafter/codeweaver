@@ -1,8 +1,8 @@
-import { Validate, ZodInput } from "ts-zod-decorators";
 import { User, ZodUserCreationDto, UserCreationDto } from "./dto/user.dto";
 import { onError, rateLimit, timeout } from "utils-decorators";
-import { ResponseError } from "../../types";
-import { tryParseId } from "../../utilities";
+import { Validate, ZodInput } from "@pkg/ts-zod-decorators";
+import { ResponseError } from "@/types";
+import { tryParseId } from "@/utilities";
 
 // Array to store users (as a mock database)
 const users = [

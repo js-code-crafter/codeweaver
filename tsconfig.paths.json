@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@pkg/*": ["dist/packages/*"],
+      "@r/*": ["dist/routers/*"],
+      "@/*": ["dist/*"]
+    }
+  }
+}

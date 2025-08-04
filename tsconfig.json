@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "ESNext",
+    "target": "ES2023",
     "module": "commonjs",
     "outDir": "./dist",
     "strict": true,
@@ -8,8 +8,14 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "emitDecoratorMetadata": true,
+    "baseUrl": ".",
+    "paths": {
+      "@pkg/*": ["src/packages/*"],
+      "@r/*": ["src/routers/*"],
+      "@/*": ["src/*"]
+    }
   },
-  "include": ["src/**/*.ts", "src/**/*.js", "command.js"],
+  "include": ["**/*.ts", "**/*.js"],
   "exclude": ["node_modules"]
 }
