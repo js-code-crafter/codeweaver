@@ -1,14 +1,16 @@
-import { onError, rateLimit, timeout } from "utils-decorators";
+import { memoizeAsync, onError, rateLimit, timeout } from "utils-decorators";
 import {
   Product,
   ProductCreationDto,
+  ProductDto,
   ProductUpdateDto,
   ZodProductCreationDto,
   ZodProductUpdateDto,
 } from "./dto/product.dto";
-import { Validate, ZodInput } from "@pkg/ts-zod-decorators";
-import { ResponseError } from "@/types";
-import { tryParseId } from "@/utilities";
+import { Validate, ZodInput } from "ts-zod4-decorators";
+import { ResponseError } from "@/utilities/types";
+import { parseId } from "@/utilities/error-handling";
+import config from "@/config";
 
 // Array to store products (as a mock database)
 const products: Product[] = [
@@ -89,18 +91,12 @@ const products: Product[] = [
 
 function exceedHandler() {
   const message = "Too much call in allowed window";
-
-  throw new Error(message, {
-    cause: { status: 500, message } satisfies ResponseError,
-  });
+  throw new ResponseError(message, 429);
 }
 
 function getProductErrorHandler(e: Error) {
-  const message = "User not found.";
-
-  throw new Error(message, {
-    cause: { status: 404, message, details: e.message } satisfies ResponseError,
-  });
+  const message = "Product not found.";
+  throw new ResponseError(message, 404, e.message);
 }
 
 /**
@@ -110,8 +106,8 @@ function getProductErrorHandler(e: Error) {
  */
 export default class ProductController {
   @rateLimit({
-    timeSpanMs: 60000,
-    allowedCalls: 300,
+    timeSpanMs: config.rateLimitTimeSpan,
+    allowedCalls: config.rateLimitAllowedCalls,
     exceedHandler,
   })
   @Validate
@@ -122,41 +118,40 @@ export default class ProductController {
    */
   public async create(
     @ZodInput(ZodProductCreationDto) product: ProductCreationDto
-  ) {
+  ): Promise<ProductDto> {
     products.push({
       ...product,
       id: products.length + 1,
     } satisfies Product);
 
-    return product;
+    return product as ProductDto;
   }
 
-  @timeout(20000)
+  @memoizeAsync(config.memoizeTime)
+  @timeout(config.timeout)
   @rateLimit({
-    timeSpanMs: 60000,
-    allowedCalls: 300,
+    timeSpanMs: config.rateLimitTimeSpan,
+    allowedCalls: config.rateLimitAllowedCalls,
     exceedHandler,
   })
   /**
    * Retrieves all products with truncated descriptions
    * @returns List of products with summarized descriptions
    */
-  public async getAll(): Promise<Product[]> {
-    return products.map(
-      (product) =>
-        ({
-          ...product,
-          description: product.description?.substring(0, 50) + "..." || "",
-        } satisfies Product)
-    );
+  public async getAll(): Promise<ProductDto[]> {
+    return products.map((product) => ({
+      ...product,
+      description: product.description?.substring(0, 50) + "..." || "",
+    }));
   }
 
+  @memoizeAsync(config.memoizeTime)
   @onError({
     func: getProductErrorHandler,
   })
   @rateLimit({
-    timeSpanMs: 60000,
-    allowedCalls: 300,
+    timeSpanMs: config.rateLimitTimeSpan,
+    allowedCalls: config.rateLimitAllowedCalls,
     exceedHandler,
   })
   /**
@@ -164,23 +159,16 @@ export default class ProductController {
    * @param id - Product ID as string
    * @returns Product details or error object if not found
    */
-  public async get(id: string): Promise<Product | ResponseError> {
-    const productId = tryParseId(id);
-    if (typeof productId != "number") return productId satisfies ResponseError;
+  public async get(id: string): Promise<ProductDto> {
+    const productId = parseId(id);
     const product = products.find((product) => product.id === productId);
-
-    if (!product)
-      return {
-        status: 404,
-        message: "Product dose not exist.",
-      } satisfies ResponseError;
-
-    return product satisfies Product;
+    if (product == null) throw new ResponseError("User dose not exist.", 404);
+    return product;
   }
 
   @rateLimit({
-    timeSpanMs: 60000,
-    allowedCalls: 300,
+    timeSpanMs: config.rateLimitTimeSpan,
+    allowedCalls: config.rateLimitAllowedCalls,
     exceedHandler,
   })
   @Validate
@@ -188,50 +176,42 @@ export default class ProductController {
    * Updates an existing product
    * @param {string} id - Product ID to update
    * @param {ProductUpdateDto} updateData - Partial product data to update
-   * @returns {Promise<Product | ResponseError>} Updated product or error object
+   * @returns {Promise<Product>} Updated product or error object
    * @throws {ResponseError} 404 - Product not found
    * @throws {ResponseError} 400 - Invalid ID format or update data
    */
   public async update(
     id: string,
     @ZodInput(ZodProductUpdateDto) updateData: ProductUpdateDto
-  ): Promise<Product | ResponseError> {
+  ): Promise<ProductDto> {
     const product = await this.get(id);
     if ("id" in product == false) return product satisfies ResponseError;
 
-    if (product) Object.assign(product, updateData);
-    else
-      return {
-        status: 404,
-        message: "Product not found",
-      } satisfies ResponseError;
+    if (product) {
+      Object.assign(product, updateData);
+    } else {
+      throw new ResponseError("Product dose not exist.", 404);
+    }
 
     return product;
   }
 
   @rateLimit({
-    timeSpanMs: 60000,
-    allowedCalls: 300,
+    timeSpanMs: config.rateLimitTimeSpan,
+    allowedCalls: config.rateLimitAllowedCalls,
     exceedHandler,
   })
   /**
    * Deletes a product by ID
    * @param {string} id - Product ID to delete
-   * @returns {Promise<Product | ResponseError>} Deleted product or error object
+   * @returns {Promise<Product>} Deleted product or error object
    * @throws {ResponseError} 404 - Product not found
    * @throws {ResponseError} 400 - Invalid ID format
    */
-  public async delete(id: string): Promise<Product | ResponseError> {
-    const productId = tryParseId(id);
-    if (typeof productId != "number") return productId satisfies ResponseError;
+  public async delete(id: string): Promise<ProductDto> {
+    const productId = parseId(id);
     const index = products.findIndex((product) => product.id === productId);
-
-    if (index == -1)
-      return {
-        status: 404,
-        message: "Product dose not exist.",
-      } satisfies ResponseError;
-
-    return products.splice(index, 1)[0] satisfies Product;
+    if (index == -1) throw new ResponseError("Product dose not exist.", 404);
+    return products.splice(index, 1)[0];
   }
 }

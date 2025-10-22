@@ -1,8 +1,14 @@
-import { User, ZodUserCreationDto, UserCreationDto } from "./dto/user.dto";
-import { onError, rateLimit, timeout } from "utils-decorators";
-import { Validate, ZodInput } from "@pkg/ts-zod-decorators";
-import { ResponseError } from "@/types";
-import { tryParseId } from "@/utilities";
+import {
+  User,
+  ZodUserCreationDto,
+  UserCreationDto,
+  UserDto,
+} from "./dto/user.dto";
+import { memoizeAsync, onError, rateLimit, timeout } from "utils-decorators";
+import { Validate, ZodInput } from "ts-zod4-decorators";
+import { ResponseError } from "@/utilities/types";
+import { parseId } from "@/utilities/error-handling";
+import config from "@/config";
 
 // Array to store users (as a mock database)
 const users = [
@@ -70,18 +76,12 @@ const users = [
 
 function exceedHandler() {
   const message = "Too much call in allowed window";
-
-  throw new Error(message, {
-    cause: { status: 500, message } satisfies ResponseError,
-  });
+  throw new ResponseError(message, 429);
 }
 
 function getUserErrorHandler(e: Error) {
   const message = "User not found.";
-
-  throw new Error(message, {
-    cause: { status: 404, message, details: e.message } satisfies ResponseError,
-  });
+  throw new ResponseError(message, 404, e.message);
 }
 
 /**
@@ -93,8 +93,8 @@ export default class UserController {
   // constructor(private readonly userService: UserService) { }
 
   @rateLimit({
-    timeSpanMs: 60000,
-    allowedCalls: 300,
+    timeSpanMs: config.rateLimitTimeSpan,
+    allowedCalls: config.rateLimitAllowedCalls,
     exceedHandler,
   })
   @Validate
@@ -106,42 +106,37 @@ export default class UserController {
    * @throws {ResponseError} 400 - Invalid input data
    */
   public async create(@ZodInput(ZodUserCreationDto) user: UserCreationDto) {
-    users.push({ ...user, id: users.length + 1 } satisfies User);
+    users.push({ ...user, id: users.length + 1 });
   }
 
+  @memoizeAsync(config.memoizeTime)
   @onError({
     func: getUserErrorHandler,
   })
   @rateLimit({
-    timeSpanMs: 60000,
-    allowedCalls: 300,
+    timeSpanMs: config.rateLimitTimeSpan,
+    allowedCalls: config.rateLimitAllowedCalls,
     exceedHandler,
   })
   /**
    * Get user by ID
    * @param {string} id - User ID as string
-   * @returns {Promise<User | ResponseError>} User details or error object
+   * @returns {Promise<User>} User details or error object
    * @throws {ResponseError} 404 - User not found
    * @throws {ResponseError} 400 - Invalid ID format
    */
-  public async get(id: string): Promise<User | ResponseError> {
-    const userId = tryParseId(id);
-    if (typeof userId != "number") return userId satisfies ResponseError;
-    const user = users.find((user) => user.id === userId);
-
-    if (!user)
-      return {
-        status: 404,
-        message: "User dose not exist.",
-      } satisfies ResponseError;
-
+  public async get(id: string): Promise<UserDto> {
+    const response = parseId(id);
+    const user = users.find((user) => user.id === response);
+    if (user == null) throw new ResponseError("User dose not exist.", 404);
     return user satisfies User;
   }
 
-  @timeout(20000)
+  @memoizeAsync(config.memoizeTime)
+  @timeout(config.timeout)
   @rateLimit({
-    timeSpanMs: 60000,
-    allowedCalls: 300,
+    timeSpanMs: config.rateLimitTimeSpan,
+    allowedCalls: config.rateLimitAllowedCalls,
     exceedHandler,
   })
   /**
@@ -149,13 +144,10 @@ export default class UserController {
    * @returns {Promise<User[]>} List of users with hidden password fields
    * @throws {ResponseError} 500 - When rate limit exceeded
    */
-  public async getAll(): Promise<User[]> {
-    return users.map(
-      (user) =>
-        ({
-          ...user,
-          password: "?",
-        } satisfies User)
-    );
+  public async getAll(): Promise<UserDto[]> {
+    return users.map((user) => ({
+      ...user,
+      password: "?",
+    }));
   }
 }

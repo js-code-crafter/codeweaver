@@ -34,3 +34,4 @@ export const ZodProductUpdateDto = ZodProductCreationDto.partial();
 export type Product = z.infer<typeof ZodProduct>;
 export type ProductCreationDto = z.infer<typeof ZodProductCreationDto>;
 export type ProductUpdateDto = z.infer<typeof ZodProductUpdateDto>;
+export type ProductDto = z.infer<typeof ZodProduct>;

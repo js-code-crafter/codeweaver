@@ -1,12 +1,14 @@
-import { onError, rateLimit, timeout } from "utils-decorators";
+import { memoizeAsync, onError, rateLimit, timeout } from "utils-decorators";
 import {
   Order,
+  OrderDto,
   OrderCreationDto,
   ZodOrderCreationDto,
 } from "./dto/order.dto";
-import { Validate, ZodInput } from "@pkg/ts-zod-decorators";
-import { ResponseError } from "@/types";
-import { tryParseId } from "@/utilities";
+import { Validate, ZodInput } from "ts-zod4-decorators";
+import { ResponseError } from "@/utilities/types";
+import { parseId } from "@/utilities/error-handling";
+import config from "@/config";
 
 // Array to store orders (as a mock database)
 const orders: Order[] = [
@@ -49,18 +51,12 @@ const orders: Order[] = [
 
 function exceedHandler() {
   const message = "Too much call in allowed window";
-
-  throw new Error(message, {
-    cause: { status: 500, message } satisfies ResponseError,
-  });
+  throw new ResponseError(message, 429);
 }
 
 function getOrderErrorHandler(e: Error) {
   const message = "Order not found.";
-
-  throw new Error(message, {
-    cause: { status: 404, message, details: e.message } satisfies ResponseError,
-  });
+  throw new ResponseError(message, 404, e.message);
 }
 
 /**
@@ -70,8 +66,8 @@ function getOrderErrorHandler(e: Error) {
  */
 export default class OrderController {
   @rateLimit({
-    timeSpanMs: 60000,
-    allowedCalls: 300,
+    timeSpanMs: config.rateLimitTimeSpan,
+    allowedCalls: config.rateLimitAllowedCalls,
     exceedHandler,
   })
   @Validate
@@ -92,23 +88,25 @@ export default class OrderController {
     return newOrder;
   }
 
-  @timeout(20000)
+  @memoizeAsync(config.memoizeTime)
+  @timeout(config.timeout)
   @rateLimit({
-    timeSpanMs: 60000,
-    allowedCalls: 300,
+    timeSpanMs: config.rateLimitTimeSpan,
+    allowedCalls: config.rateLimitAllowedCalls,
     exceedHandler,
   })
   /**
    * Retrieves all orders
    * @returns List of orders
    */
-  public async getAll(): Promise<Order[]> {
+  public async getAll(): Promise<OrderDto[]> {
     return orders;
   }
 
+  @memoizeAsync(config.memoizeTime)
   @rateLimit({
-    timeSpanMs: 60000,
-    allowedCalls: 300,
+    timeSpanMs: config.rateLimitTimeSpan,
+    allowedCalls: config.rateLimitAllowedCalls,
     exceedHandler,
   })
   @onError({
@@ -119,42 +117,33 @@ export default class OrderController {
    * @param id - Order ID as string
    * @returns Order details or error object if not found
    */
-  public async get(id: string): Promise<Order | ResponseError> {
-    const orderId = tryParseId(id);
-    if (typeof orderId != "number") return orderId satisfies ResponseError;
+  public async get(id: string): Promise<OrderDto> {
+    const orderId = parseId(id);
     const order = orders.find((order) => order.id === orderId);
-
-    if (!order)
-      return {
-        status: 404,
-        message: "Order dose not exist.",
-      } satisfies ResponseError;
-
+    if (order == null) throw new ResponseError("User dose not exist.", 404);
     return order satisfies Order;
   }
 
   @rateLimit({
-    timeSpanMs: 60000,
-    allowedCalls: 300,
+    timeSpanMs: config.rateLimitTimeSpan,
+    allowedCalls: config.rateLimitAllowedCalls,
     exceedHandler,
   })
   /**
    * Cancel an existing order
    * @param {string} id - Order ID to cancel
-   * @returns {Promise<Order | ResponseError>} Updated order or error object
+   * @returns {Promise<Order>} Updated order or error object
    * @throws {ResponseError} 404 - Order not found
    * @throws {ResponseError} 400 - Invalid ID format or invalid status for cancellation
    */
-  public async cancel(id: string): Promise<Order | ResponseError> {
+  public async cancel(id: string): Promise<OrderDto> {
     let order = await this.get(id);
-    if ("id" in order == false) return order satisfies ResponseError;
-
-    if (order.status != "Processing")
-      return {
-        status: 400,
-        message:
-          "Cancellation is not available unless the order is in processing status.",
-      } satisfies ResponseError;
+    if (order.status != "Processing") {
+      throw new ResponseError(
+        "Cancellation is not available unless the order is in processing status.",
+        400
+      );
+    }
 
     order.status = "Canceled";
     order.deliveredAt = new Date();
@@ -162,27 +151,25 @@ export default class OrderController {
   }
 
   @rateLimit({
-    timeSpanMs: 60000,
-    allowedCalls: 300,
+    timeSpanMs: config.rateLimitTimeSpan,
+    allowedCalls: config.rateLimitAllowedCalls,
     exceedHandler,
   })
   /**
    * Mark an order as delivered
    * @param {string} id - Order ID to mark as delivered
-   * @returns {Promise<Order | ResponseError>} Updated order or error object
+   * @returns {Promise<Order>} Updated order or error object
    * @throws {ResponseError} 404 - Order not found
    * @throws {ResponseError} 400 - Invalid ID format or invalid status for delivery
    */
-  public async deliver(id: string): Promise<Order | ResponseError> {
+  public async deliver(id: string): Promise<OrderDto> {
     let order = await this.get(id);
-    if ("id" in order == false) return order satisfies ResponseError;
-
-    if (order.status != "Processing")
-      return {
-        status: 400,
-        message:
-          "Delivery is only available when the order is in processing status.",
-      } satisfies ResponseError;
+    if (order.status != "Processing") {
+      throw new ResponseError(
+        "Delivery is only available when the order is in processing status.",
+        400
+      );
+    }
 
     order.status = "Delivered";
     order.deliveredAt = new Date();

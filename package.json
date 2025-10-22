@@ -1,15 +1,15 @@
 {
   "name": "codeweaver",
-  "version": "1.1.0",
-  "main": "src/app.ts",
+  "version": "2.0.0",
+  "main": "src/main.ts",
   "bin": {
     "create-codeweaver-app": "./command.js"
   },
   "scripts": {
-    "start": "nodemon -r tsconfig-paths/register src/app.ts",
-    "dev": "nodemon -r tsconfig-paths/register src/app.ts",
+    "start": "nodemon -r tsconfig-paths/register src/main.ts",
+    "dev": "nodemon -r tsconfig-paths/register src/main.ts",
     "build": "tsc && tsc-alias && copyfiles -u 1 \"src/**/*.{json,env,sqlite,db,sql,yaml,yml,xml,txt,md}\" dist",
-    "serve": "cross-env TSCONFIG_PATH=tsconfig.paths.json node -r tsconfig-paths/register dist/app.js"
+    "serve": "cross-env TSCONFIG_PATH=tsconfig.paths.json node -r tsconfig-paths/register dist/main.js"
   },
   "keywords": [
     "codeweaver",
@@ -32,8 +32,11 @@
   "license": "MIT",
   "description": "A lightweight framework built on top of Express and TypeScript",
   "dependencies": {
+    "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "express-async-handler": "^1.2.0",
+    "swagger-jsdoc": "^3.7.0",
+    "ts-zod4-decorators": "^1.0.0",
     "utils-decorators": "^2.10.0",
     "zod": "^4.0.14"
   },
@@ -43,7 +46,6 @@
     "copyfiles": "^2.4.1",
     "cross-env": "^10.0.0",
     "nodemon": "^3.1.10",
-    "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "ts-node": "^10.9.2",
     "tsc-alias": "^1.8.16",

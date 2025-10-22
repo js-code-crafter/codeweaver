@@ -1,7 +1,6 @@
 import { Router, Request, Response } from "express";
 import asyncHandler from "express-async-handler";
 import ProductController from "./product.controller";
-import { sendError } from "@/utilities";
 
 const router = Router();
 const productController = new ProductController();
@@ -105,9 +104,7 @@ router.get(
   "/:id",
   asyncHandler(async (req: Request, res: Response) => {
     const product = await productController.get(req.params.id);
-
-    if ("id" in product == false) sendError(res, product);
-    else res.json(product);
+    res.json(product);
   })
 );
 
@@ -168,9 +165,7 @@ router.put(
   "/:id",
   asyncHandler(async (req: Request, res: Response) => {
     const product = await productController.update(req.params.id, req.body);
-
-    if ("id" in product == false) sendError(res, product);
-    else res.json(product);
+    res.json(product);
   })
 );
 
@@ -198,9 +193,7 @@ router.delete(
   "/:id",
   asyncHandler(async (req: Request, res: Response) => {
     const product = await productController.delete(req.params.id);
-
-    if ("id" in product == false) sendError(res, product);
-    else res.json(product);
+    res.json(product);
   })
 );
 

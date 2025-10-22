@@ -1,7 +1,6 @@
 import { Router, Request, Response } from "express";
 import asyncHandler from "express-async-handler";
 import UserController from "./user.controller";
-import { sendError } from "@/utilities";
 
 const router = Router();
 const userController = new UserController();
@@ -73,9 +72,7 @@ router.get(
   "/:id",
   asyncHandler(async (req: Request, res: Response) => {
     const user = await userController.get(req.params.id);
-
-    if ("id" in user == false) sendError(res, user);
-    else res.json(user);
+    res.json(user);
   })
 );
 

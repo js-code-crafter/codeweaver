@@ -1,3 +1,12 @@
+import {
+  memoizeTime,
+  productionEnvironment,
+  rateLimitTimeSpan,
+  rateLimitAllowedCalls,
+  timeout,
+  portNumber,
+} from "./constants";
+
 /**
  * Server configuration interface
  * @interface
@@ -53,13 +62,18 @@ interface SwaggerOptions {
  */
 interface Config {
   devMode: boolean;
-  port: string;
+  port: number;
   swaggerOptions: SwaggerOptions;
+  timeout: number;
+  rateLimitTimeSpan: number;
+  rateLimitAllowedCalls: number;
+  memoizeTime: number;
 }
 
-const port = process.env.PORT || "3000";
-const config: Config = {
-  devMode: process.env.NODE_ENV !== "production",
+const port = Number(process.env.PORT) || portNumber;
+
+let config: Config = {
+  devMode: process.env.NODE_ENV !== productionEnvironment,
   port,
   swaggerOptions: {
     swaggerDefinition: {
@@ -82,17 +96,11 @@ const config: Config = {
       "./src/routers/**/*.js",
     ], // Path to the API docs
   },
+  timeout: Number(process.env.TIMEOUT) || timeout,
+  rateLimitTimeSpan: Number(process.env.RATE_LIMIT) || rateLimitTimeSpan,
+  rateLimitAllowedCalls:
+    Number(process.env.RATE_LIMIT) || rateLimitAllowedCalls,
+  memoizeTime: Number(process.env.MEMOIZE_TIME) || memoizeTime,
 };
-
-// Other configurations:
-//
-// config.jwt_key = config.devMode ? "" : "";
-// config.jwt_expiration = config.devMode ? 360000 : 360000;
-// config.dbConnectionString = config.devMode ? `mongoDb url` : `mongoDb url`;
-// config.mongoDebug = config.devMode;
-// config.port = config.devMode ? 3000 : 3000;
-// config.host = config.devMode ? "localhost" : "localhost";
-// config.env = config.devMode ? "development" : "production";
-// config.mongoUrl = config.devMode ? "mongodb://localhost:27017/test" : "mongodb://localhost:27017/test";
 
 export default config;

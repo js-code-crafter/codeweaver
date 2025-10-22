@@ -53,34 +53,36 @@ To get started with the project, follow these steps:
 
 **/src**  
 ├── **/routers** `Directory containing all router files`  
-│ ├── **/user** `Routers for user-related endpoints`  
-│ │ ├── user_router1.ts `/user/user_router1`  
-│ │ ├── user_router2.ts `/user/user_router2`  
+│ ├── **/users** `Routers for user-related endpoints`  
+│ │ ├── index.router.ts `/users`  
+│ │ ├── user-router2.router.ts `/users/user-router2`  
 │ │ ├── user.controller.ts  
 │ │ ├── user.service.ts  
 │ │ └── user.dto.ts  
-│ ├── **/product** `Routers for product-related endpoints`  
-│ │ ├── index.ts `/product`  
-│ │ ├── product_test.spec.ts  
+│ ├── **/products** `Routers for product-related endpoints`  
+│ │ ├── index.router.ts `/products`  
 │ │ ├── product.controller.ts  
 │ │ ├── product.service.ts  
-│ │ ├── **/dto**  
+│ │ ├── **/dtos**  
 │ │ │ └── product.dto.ts  
-│ ├── **/order** `Routers for order-related endpoints`  
-│ │ ├── index.ts `/order`  
-│ │ ├── order_test.spec.ts  
+| | │ └── product-types.dto.ts  
+│ ├── **/orders** `Routers for order-related endpoints`  
+│ │ ├── index.router.ts `/orders`  
 │ │ ├── order.controller.ts  
-│ │ └── order.service.ts  
-│ └── index.ts `Home page`  
+│ │ ├── order.controller.spec.ts  
+│ │ ├── order.service.ts  
+│ │ └── order.service.spec.ts  
+│ └── index.router.ts `Home page`  
+│ └── app.controller.ts `Home page`  
 ├── app.ts `Main application file`  
 ├── config.ts `Application configuration file`  
 └── ... `Other files (middleware, models, etc.)`
 
 ### Router Directory
 
-Each router file in the `/routers` directory is organized to handle related endpoints. The `app.ts` file automatically imports all routers and mounts them to the main Express application, making it simple to add new routes without modifying central files.
+Each router file in the `/routers` directory is organized to handle related endpoints. The `app.ts` file automatically imports all routers and mounts them on the main Express application, making it straightforward to add new routes without touching central code.
 
-Files that end with `.controller`, `.service`, `.spec`, `.dto`, `.middleware`, `.error`, `.class`, or `.decorator`, as well as those that start with `_` or `@`, are excluded from the router list and can be utilized for various other purposes within the application.
+Files ending with `.router.ts` or `.router.js` are automatically included in the router list and can be reused for various purposes within the application.
 
 Example of a basic router:
 
@@ -88,7 +90,6 @@ Example of a basic router:
 import { Router, Request, Response } from "express";
 import asyncHandler from "express-async-handler";
 import UserController from "./user.controller";
-import { sendError } from "@src/utilities";
 
 const router = Router();
 const userController = new UserController();
@@ -160,9 +161,7 @@ router.get(
   "/:id",
   asyncHandler(async (req: Request, res: Response) => {
     const user = await userController.get(req.params.id);
-
-    if ("id" in user == false) sendError(res, user);
-    else res.json(user);
+    res.json(user);
   })
 );
 
@@ -214,14 +213,16 @@ import { z } from "zod";
 export const ZodUser = z.object({
   id: z.number().min(1).int(),
   username: z.string().min(3),
-  email: z.string().email(),
+  email: z.email(),
   password: z.string().min(6),
 });
 
 export const ZodUserCreationDto = ZodUser.omit({ id: true });
+export const ZodUserDto = ZodUser.omit({ password: true });
 
 export type User = z.infer<typeof ZodUser>;
 export type UserCreationDto = z.infer<typeof ZodUserCreationDto>;
+export type UserDto = z.infer<typeof ZodUserDto>;
 ```
 
 - **Throttling and Rate Limiting**: The `@rateLimit` decorator is applied to safeguard the application's endpoints from abuse by limiting how frequently a particular method can be invoked.
@@ -233,11 +234,17 @@ By using a well-organized controller structure, this project makes it easier to 
 Here is a quick reference to the UserController in practice:
 
 ```typescript
-import { User, ZodUserCreationDto, UserCreationDto } from "./dto/user.dto";
-import { onError, rateLimit, timeout } from "utils-decorators";
-import { Validate, ZodInput } from "@pkg/ts-zod-decorators";
-import { ResponseError } from "@src/types";
-import { tryParseId } from "@src/utilities";
+import {
+  User,
+  ZodUserCreationDto,
+  UserCreationDto,
+  UserDto,
+} from "./dto/user.dto";
+import { memoizeAsync, onError, rateLimit, timeout } from "utils-decorators";
+import { Validate, ZodInput } from "ts-zod4-decorators";
+import { ResponseError } from "@/types";
+import { parseId } from "@/utilities/error-handling";
+import config from "@/config";
 
 // Array to store users (as a mock database)
 const users = [
@@ -305,18 +312,12 @@ const users = [
 
 function exceedHandler() {
   const message = "Too much call in allowed window";
-
-  throw new Error(message, {
-    cause: { status: 500, message } satisfies ResponseError,
-  });
+  throw new ResponseError(message, 429);
 }
 
 function getUserErrorHandler(e: Error) {
   const message = "User not found.";
-
-  throw new Error(message, {
-    cause: { status: 404, message, details: e.message } satisfies ResponseError,
-  });
+  throw new ResponseError(message, 404, e.message);
 }
 
 /**
@@ -328,8 +329,8 @@ export default class UserController {
   // constructor(private readonly userService: UserService) { }
 
   @rateLimit({
-    timeSpanMs: 60000,
-    allowedCalls: 300,
+    timeSpanMs: config.rateLimitTimeSpan,
+    allowedCalls: config.rateLimitAllowedCalls,
     exceedHandler,
   })
   @Validate
@@ -341,57 +342,49 @@ export default class UserController {
    * @throws {ResponseError} 400 - Invalid input data
    */
   public async create(@ZodInput(ZodUserCreationDto) user: UserCreationDto) {
-    users.push({ ...user, id: users.length + 1 } satisfies User);
+    users.push({ ...user, id: users.length + 1 });
   }
 
+  @memoizeAsync(config.memoizeTime)
   @onError({
     func: getUserErrorHandler,
   })
   @rateLimit({
-    timeSpanMs: 60000,
-    allowedCalls: 300,
+    timeSpanMs: config.rateLimitTimeSpan,
+    allowedCalls: config.rateLimitAllowedCalls,
     exceedHandler,
   })
   /**
    * Get user by ID
    * @param {string} id - User ID as string
-   * @returns {Promise<User | ResponseError>} User details or error object
+   * @returns {Promise<User>} User details or error object
    * @throws {ResponseError} 404 - User not found
    * @throws {ResponseError} 400 - Invalid ID format
    */
-  public async get(id: string): Promise<User | ResponseError> {
-    const userId = tryParseId(id);
-    if (typeof userId != "number") return userId satisfies ResponseError;
-    const user = users.find((user) => user.id === userId);
-
-    if (!user)
-      return {
-        status: 404,
-        message: "User dose not exist.",
-      } satisfies ResponseError;
-
+  public async get(id: string): Promise<UserDto> {
+    const response = parseId(id);
+    const user = users.find((user) => user.id === response);
+    if (user == null) throw new ResponseError("User dose not exist.", 404);
     return user satisfies User;
   }
 
-  @timeout(20000)
+  @memoizeAsync(config.memoizeTime)
+  @timeout(config.timeout)
   @rateLimit({
-    timeSpanMs: 60000,
-    allowedCalls: 300,
+    timeSpanMs: config.rateLimitTimeSpan,
+    allowedCalls: config.rateLimitAllowedCalls,
     exceedHandler,
   })
   /**
    * Get all users with masked passwords
-   * @returns {Promise<User[]>} List of users with hidden password fields
+   * @returns {Promise<UserDto[]>} List of users with hidden password fields
    * @throws {ResponseError} 500 - When rate limit exceeded
    */
-  public async getAll(): Promise<User[]> {
-    return users.map(
-      (user) =>
-        ({
-          ...user,
-          password: "?",
-        } satisfies User)
-    );
+  public async getAll(): Promise<UserDto[]> {
+    return users.map((user) => ({
+      ...user,
+      password: "?",
+    }));
   }
 }
 ```

@@ -38,3 +38,4 @@ export const ZodOrderCreationDto = ZodOrder.omit({
 
 export type Order = z.infer<typeof ZodOrder>;
 export type OrderCreationDto = z.infer<typeof ZodOrderCreationDto>;
+export type OrderDto = z.infer<typeof ZodOrder>;

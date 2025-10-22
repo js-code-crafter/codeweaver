@@ -1,7 +1,6 @@
 import { Router, Request, Response } from "express";
 import asyncHandler from "express-async-handler";
 import OrderController from "./order.controller";
-import { sendError } from "@/utilities";
 
 const router = Router();
 const orderController = new OrderController();
@@ -101,8 +100,7 @@ router.get(
   "/:id",
   asyncHandler(async (req: Request, res: Response) => {
     const order = await orderController.get(req.params.id);
-    if ("id" in order == false) sendError(res, order);
-    else res.json(order);
+    res.json(order);
   })
 );
 
@@ -126,8 +124,7 @@ router.patch(
   "/:id/cancel",
   asyncHandler(async (req: Request, res: Response) => {
     const order = await orderController.cancel(req.params.id);
-    if ("id" in order == false) sendError(res, order);
-    else res.json(order);
+    res.json(order);
   })
 );
 
@@ -153,8 +150,7 @@ router.patch(
   "/:id/deliver",
   asyncHandler(async (req: Request, res: Response) => {
     const order = await orderController.deliver(req.params.id);
-    if ("id" in order == false) sendError(res, order);
-    else res.json(order);
+    res.json(order);
   })
 );
 
