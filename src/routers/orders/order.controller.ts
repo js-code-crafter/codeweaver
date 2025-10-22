@@ -88,7 +88,6 @@ export default class OrderController {
     return newOrder;
   }
 
-  @memoizeAsync(config.memoizeTime)
   @timeout(config.timeout)
   @rateLimit({
     timeSpanMs: config.rateLimitTimeSpan,

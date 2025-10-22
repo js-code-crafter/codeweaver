@@ -8,7 +8,7 @@ import {
   ZodProductUpdateDto,
 } from "./dto/product.dto";
 import { Validate, ZodInput } from "ts-zod4-decorators";
-import { ResponseError } from "@/utilities/types";
+import { MapAsyncCache, ResponseError } from "@/utilities/types";
 import { parseId } from "@/utilities/error-handling";
 import config from "@/config";
 
@@ -99,6 +99,9 @@ function getProductErrorHandler(e: Error) {
   throw new ResponseError(message, 404, e.message);
 }
 
+const productsCache = new MapAsyncCache<Product[]>();
+const productCache = new MapAsyncCache<Product>();
+
 /**
  * Controller for handling product-related operations
  * @class ProductController
@@ -127,7 +130,11 @@ export default class ProductController {
     return product as ProductDto;
   }
 
-  @memoizeAsync(config.memoizeTime)
+  @memoizeAsync({
+    cache: productsCache,
+    keyResolver: (param) => param,
+    expirationTimeMs: config.memoizeTime,
+  })
   @timeout(config.timeout)
   @rateLimit({
     timeSpanMs: config.rateLimitTimeSpan,
@@ -138,14 +145,21 @@ export default class ProductController {
    * Retrieves all products with truncated descriptions
    * @returns List of products with summarized descriptions
    */
-  public async getAll(): Promise<ProductDto[]> {
-    return products.map((product) => ({
-      ...product,
-      description: product.description?.substring(0, 50) + "..." || "",
-    }));
+  public async getAll(param: null): Promise<ProductDto[]> {
+    param = null;
+    return products.map((product) => {
+      return {
+        ...product,
+        description: product.description?.substring(0, 50) + "..." || "",
+      };
+    });
   }
 
-  @memoizeAsync(config.memoizeTime)
+  @memoizeAsync({
+    cache: productCache,
+    keyResolver: (id) => id,
+    expirationTimeMs: config.memoizeTime,
+  })
   @onError({
     func: getProductErrorHandler,
   })
@@ -212,6 +226,8 @@ export default class ProductController {
     const productId = parseId(id);
     const index = products.findIndex((product) => product.id === productId);
     if (index == -1) throw new ResponseError("Product dose not exist.", 404);
+    productCache.delete(id);
+    productsCache.delete("");
     return products.splice(index, 1)[0];
   }
 }
