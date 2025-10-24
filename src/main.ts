@@ -75,8 +75,9 @@ app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
 // Start the server
 app.listen(config.port, () => {
   console.log(`Server is running on http://localhost:${config.port}`);
-  if (config.devMode)
+  if (config.devMode) {
     console.log(
       `Swagger UI is available at http://localhost:${config.port}/api-docs`
     );
+  }
 });

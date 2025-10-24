@@ -1,5 +1,5 @@
 import { z, ZodRawShape } from "zod";
-import { ResponseError } from "./types";
+import { ResponseError } from "./cache/memory-cache";
 
 /**
  * Strictly convert obj (type T1) to T2 using a Zod schema.

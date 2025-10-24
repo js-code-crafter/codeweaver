@@ -1,5 +1,54 @@
 import { Response } from "express";
-import { ReturnInfo, ResponseError } from "./types";
+
+/**
+ * Represents a standardized error response structure for API endpoints.
+ *
+ * This class models an API-friendly error, carrying a human message plus
+ * optional metadata (status, details, input, code, stack). Extends the built-in Error
+ * so it works naturally with try/catch blocks.
+ */
+export class ResponseError extends Error {
+  public constructor(
+    /**
+     * User-facing error message describing what went wrong.
+     */
+    public message: string,
+
+    /**
+     * Optional HTTP status code related to the error (e.g., 400, 404, 500).
+     */
+    public status?: number,
+
+    /**
+     * Optional human-readable details or context about the error.
+     */
+    public details?: string,
+
+    /**
+     * Optional input value that caused the error (useful for logging/diagnostics).
+     */
+    public input?: string,
+
+    /**
+     * Optional application-specific error code (e.g., "INVALID_INPUT").
+     */
+    public code?: string,
+
+    /**
+     * Optional stack trace string (usually provided by runtime).
+     * Note: In many environments, stack is inherited from Error; you may
+     * not need to redefine it here unless you have a specific reason.
+     */
+    public stack?: string
+  ) {
+    // Ensure the base Error class gets the message for standard properties like name, stack, etc.
+    super(message);
+    // Optional: Set the name to distinguish this error type
+    this.name = code ?? "ResponseError";
+    // If a custom stack is provided, you might assign it; otherwise, the runtime stack will be used.
+    if (stack) this.stack = stack;
+  }
+}
 
 /**
  * Sends a standardized HTTP error response.
@@ -13,6 +62,18 @@ import { ReturnInfo, ResponseError } from "./types";
 export function sendHttpError(res: Response, error: ResponseError): void {
   res.status(error.status ?? 500).json(error);
 }
+
+/**
+ * A generic alias representing a tuple of [result, error].
+ * - result is either T or null if an error occurred
+ * - error is either a ResponseError or null if the operation succeeded
+ */
+export type ReturnInfo<T> = [T | null, ResponseError | null];
+
+/**
+ * A Promise-wrapped version of ReturnInfo.
+ */
+export type AsyncReturnInfo<T> = Promise<ReturnInfo<T>>;
 
 /**
  * Executes a function and captures a potential error as a ReturnInfo tuple.
@@ -29,7 +90,7 @@ export function sendHttpError(res: Response, error: ResponseError): void {
  * @param error - The error object to return when an exception occurs (typically a ResponseError). If no error is provided, null is used.
  * @returns ReturnInfo<T> A tuple: [value or null, error or null]
  */
-export function tryCatch<T>(
+export function invoke<T>(
   func: () => T,
   error: ResponseError | null
 ): ReturnInfo<T> {
@@ -37,30 +98,6 @@ export function tryCatch<T>(
     return [func(), null];
   } catch {
     return [null, error];
-  }
-}
-
-/**
- * Parses a string input into a number (ID) with basic validation.
- *
- * If parsing fails, this function throws a ResponseError describing the invalid input.
- *
- * @param input - The string to parse as an integer ID
- * @returns The parsed number
- * @throws {ResponseError} When the input cannot be parsed as an integer
- */
-export function parseId(input: string): number {
-  try {
-    // parseInt may yield NaN for non-numeric input; this example mirrors the original behavior
-    // If you want stricter validation, you can check isNaN and throw a more explicit error.
-    return parseInt(input);
-  } catch {
-    throw new ResponseError(
-      input,
-      400,
-      "Wrong input",
-      "The id parameter must be an integer number."
-    );
   }
 }
 

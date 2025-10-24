@@ -1,53 +1,16 @@
 import { memoizeAsync, onError, rateLimit, timeout } from "utils-decorators";
 import {
-  Order,
   OrderDto,
   OrderCreationDto,
   ZodOrderCreationDto,
 } from "./dto/order.dto";
 import { Validate, ZodInput } from "ts-zod4-decorators";
-import { ResponseError } from "@/utilities/types";
-import { parseId } from "@/utilities/error-handling";
+import { ResponseError } from "@/utilities/error-handling";
+import { toInteger } from "@/utilities/conversion";
 import config from "@/config";
-
-// Array to store orders (as a mock database)
-const orders: Order[] = [
-  {
-    id: 1,
-    userId: 1,
-    products: [
-      { productId: 2, quantity: 1 },
-      { productId: 6, quantity: 2 },
-    ],
-    status: "Delivered",
-    total: 14400,
-    createdAt: new Date("2024-01-15"),
-    deliveredAt: new Date("2024-02-10"),
-  },
-  {
-    id: 2,
-    userId: 3,
-    products: [
-      { productId: 9, quantity: 1 },
-      { productId: 7, quantity: 1 },
-    ],
-    status: "Processing",
-    total: 36500,
-    createdAt: new Date("2024-03-20"),
-  },
-  {
-    id: 3,
-    userId: 2,
-    products: [
-      { productId: 1, quantity: 1 },
-      { productId: 4, quantity: 2 },
-    ],
-    status: "Canceled",
-    total: 81000,
-    createdAt: new Date("2024-05-01"),
-    canceledAt: new Date("2024-05-03"),
-  },
-];
+import { orders } from "@/db";
+import { Order } from "@/entities/order.entity";
+import { MapAsyncCache } from "@/utilities/cache/memory-cache";
 
 function exceedHandler() {
   const message = "Too much call in allowed window";
@@ -58,6 +21,9 @@ function getOrderErrorHandler(e: Error) {
   const message = "Order not found.";
   throw new ResponseError(message, 404, e.message);
 }
+
+const ordersCache = new MapAsyncCache<OrderDto[]>(config.cacheSize);
+const orderCache = new MapAsyncCache<OrderDto>(config.cacheSize);
 
 /**
  * Controller for handling order-related operations
@@ -85,9 +51,15 @@ export default class OrderController {
     } satisfies Order;
 
     orders.push(newOrder);
-    return newOrder;
+    orderCache.set(newOrder.id.toString(), newOrder as OrderDto);
+    ordersCache.delete("key");
   }
 
+  @memoizeAsync({
+    cache: ordersCache,
+    keyResolver: () => "key",
+    expirationTimeMs: config.memoizeTime,
+  })
   @timeout(config.timeout)
   @rateLimit({
     timeSpanMs: config.rateLimitTimeSpan,
@@ -99,10 +71,14 @@ export default class OrderController {
    * @returns List of orders
    */
   public async getAll(): Promise<OrderDto[]> {
-    return orders;
+    return orders as OrderDto[];
   }
 
-  @memoizeAsync(config.memoizeTime)
+  @memoizeAsync({
+    cache: orderCache,
+    keyResolver: (id: string) => id,
+    expirationTimeMs: config.memoizeTime,
+  })
   @rateLimit({
     timeSpanMs: config.rateLimitTimeSpan,
     allowedCalls: config.rateLimitAllowedCalls,
@@ -117,10 +93,12 @@ export default class OrderController {
    * @returns Order details or error object if not found
    */
   public async get(id: string): Promise<OrderDto> {
-    const orderId = parseId(id);
+    const orderId = toInteger(id);
     const order = orders.find((order) => order.id === orderId);
-    if (order == null) throw new ResponseError("User dose not exist.", 404);
-    return order satisfies Order;
+    if (order == null) {
+      throw new ResponseError("User dose not exist.", 404);
+    }
+    return order as OrderDto;
   }
 
   @rateLimit({
@@ -143,10 +121,12 @@ export default class OrderController {
         400
       );
     }
-
     order.status = "Canceled";
     order.deliveredAt = new Date();
-    return order satisfies Order;
+
+    orderCache.set(id, order);
+    ordersCache.delete("key");
+    return order;
   }
 
   @rateLimit({
@@ -169,9 +149,11 @@ export default class OrderController {
         400
       );
     }
-
     order.status = "Delivered";
     order.deliveredAt = new Date();
-    return order satisfies Order;
+
+    orderCache.set(id, order);
+    ordersCache.delete("key");
+    return order;
   }
 }

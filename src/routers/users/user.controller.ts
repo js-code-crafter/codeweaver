@@ -1,78 +1,12 @@
-import {
-  User,
-  ZodUserCreationDto,
-  UserCreationDto,
-  UserDto,
-} from "./dto/user.dto";
+import { ZodUserCreationDto, UserCreationDto, UserDto } from "./dto/user.dto";
 import { memoizeAsync, onError, rateLimit, timeout } from "utils-decorators";
 import { Validate, ZodInput } from "ts-zod4-decorators";
-import { ResponseError } from "@/utilities/types";
-import { parseId } from "@/utilities/error-handling";
+import { ResponseError } from "@/utilities/error-handling";
+import { toInteger } from "@/utilities/conversion";
 import config from "@/config";
-
-// Array to store users (as a mock database)
-const users = [
-  {
-    id: 1,
-    username: "johndoe",
-    email: "johndoe@gmail.com",
-    password: "S3cur3P@ssw0rd",
-  },
-  {
-    id: 2,
-    username: "janesmith",
-    email: "janesmith@yahoo.com",
-    password: "P@ssw0rd2024",
-  },
-  {
-    id: 3,
-    username: "michael89",
-    email: "michael89@hotmail.com",
-    password: "M1chael!2024",
-  },
-  {
-    id: 4,
-    username: "lisa.wong",
-    email: "lisa.wong@example.com",
-    password: "L1saW0ng!2024",
-  },
-  {
-    id: 5,
-    username: "alex_k",
-    email: "alex.k@gmail.com",
-    password: "A1ex#Key2024",
-  },
-  {
-    id: 6,
-    username: "emilyj",
-    email: "emilyj@hotmail.com",
-    password: "Em!ly0101",
-  },
-  {
-    id: 7,
-    username: "davidparker",
-    email: "david.parker@yahoo.com",
-    password: "D@v!d2024",
-  },
-  {
-    id: 8,
-    username: "sophia_m",
-    email: "sophia.m@gmail.com",
-    password: "Sophi@2024",
-  },
-  {
-    id: 9,
-    username: "chrisw",
-    email: "chrisw@outlook.com",
-    password: "Chri$Wong21",
-  },
-  {
-    id: 10,
-    username: "natalie_b",
-    email: "natalie_b@gmail.com",
-    password: "N@talie#B2024",
-  },
-];
+import { users } from "@/db";
+import { User } from "@/entities/user.entity";
+import { MapAsyncCache } from "@/utilities/cache/memory-cache";
 
 function exceedHandler() {
   const message = "Too much call in allowed window";
@@ -83,6 +17,9 @@ function getUserErrorHandler(e: Error) {
   const message = "User not found.";
   throw new ResponseError(message, 404, e.message);
 }
+
+const usersCache = new MapAsyncCache<UserDto[]>(config.cacheSize);
+const userCache = new MapAsyncCache<UserDto>(config.cacheSize);
 
 /**
  * Controller for handling user-related operations
@@ -106,10 +43,37 @@ export default class UserController {
    * @throws {ResponseError} 400 - Invalid input data
    */
   public async create(@ZodInput(ZodUserCreationDto) user: UserCreationDto) {
-    users.push({ ...user, id: users.length + 1 });
+    let newUser: User = { ...user, id: users.length + 1 };
+    users.push(newUser);
+    userCache.set(newUser.id.toString(), newUser as UserDto);
+    usersCache.delete("key");
   }
 
-  @memoizeAsync(config.memoizeTime)
+  @memoizeAsync({
+    cache: usersCache,
+    keyResolver: () => "key",
+    expirationTimeMs: config.memoizeTime,
+  })
+  @timeout(config.timeout)
+  @rateLimit({
+    timeSpanMs: config.rateLimitTimeSpan,
+    allowedCalls: config.rateLimitAllowedCalls,
+    exceedHandler,
+  })
+  /**
+   * Get all users
+   * @returns {Promise<User[]>} List of users with hidden password fields
+   * @throws {ResponseError} 500 - When rate limit exceeded
+   */
+  public async getAll(): Promise<UserDto[]> {
+    return users as UserDto[];
+  }
+
+  @memoizeAsync({
+    cache: userCache,
+    keyResolver: (id: string) => id,
+    expirationTimeMs: config.memoizeTime,
+  })
   @onError({
     func: getUserErrorHandler,
   })
@@ -126,28 +90,11 @@ export default class UserController {
    * @throws {ResponseError} 400 - Invalid ID format
    */
   public async get(id: string): Promise<UserDto> {
-    const response = parseId(id);
+    const response = toInteger(id);
     const user = users.find((user) => user.id === response);
-    if (user == null) throw new ResponseError("User dose not exist.", 404);
-    return user satisfies User;
-  }
-
-  @memoizeAsync(config.memoizeTime)
-  @timeout(config.timeout)
-  @rateLimit({
-    timeSpanMs: config.rateLimitTimeSpan,
-    allowedCalls: config.rateLimitAllowedCalls,
-    exceedHandler,
-  })
-  /**
-   * Get all users with masked passwords
-   * @returns {Promise<User[]>} List of users with hidden password fields
-   * @throws {ResponseError} 500 - When rate limit exceeded
-   */
-  public async getAll(): Promise<UserDto[]> {
-    return users.map((user) => ({
-      ...user,
-      password: "?",
-    }));
+    if (user == null) {
+      throw new ResponseError("User dose not exist.", 404);
+    }
+    return user as UserDto;
   }
 }

@@ -5,6 +5,7 @@ import {
   rateLimitAllowedCalls,
   timeout,
   portNumber,
+  cacheSize,
 } from "./constants";
 
 /**
@@ -68,6 +69,7 @@ interface Config {
   rateLimitTimeSpan: number;
   rateLimitAllowedCalls: number;
   memoizeTime: number;
+  cacheSize: number;
 }
 
 const port = Number(process.env.PORT) || portNumber;
@@ -101,6 +103,7 @@ let config: Config = {
   rateLimitAllowedCalls:
     Number(process.env.RATE_LIMIT) || rateLimitAllowedCalls,
   memoizeTime: Number(process.env.MEMOIZE_TIME) || memoizeTime,
+  cacheSize: Number(process.env.CACHE_SIZE) || cacheSize,
 };
 
 export default config;
