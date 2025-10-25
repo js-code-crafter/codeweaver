@@ -10,7 +10,7 @@ const orderController = new OrderController();
  * /orders:
  *   post:
  *     summary: Create a new order
- *     description: Creates an order with user details and products.
+ *     description: Creates an order with order details and products.
  *     consumes:
  *       - application/json
  *     produces:
@@ -22,11 +22,11 @@ const orderController = new OrderController();
  *         schema:
  *           type: object
  *           required:
- *             - userId
+ *             - orderId
  *             - products
  *             - total
  *           properties:
- *             userId:
+ *             orderId:
  *               type: integer
  *               minimum: 1
  *               example: 1
@@ -58,8 +58,9 @@ const orderController = new OrderController();
 router.post(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
-    const order = await orderController.create(req.body);
-    res.status(201).json(order);
+    const order = orderController.validateOrderCreationDto(req.body);
+    await orderController.create(order);
+    res.status(201);
   })
 );
 
@@ -99,7 +100,8 @@ router.get(
 router.get(
   "/:id",
   asyncHandler(async (req: Request, res: Response) => {
-    const order = await orderController.get(req.params.id);
+    const id = orderController.validateId(req.params.id);
+    const order = await orderController.get(id);
     res.json(order);
   })
 );
@@ -123,7 +125,8 @@ router.get(
 router.patch(
   "/:id/cancel",
   asyncHandler(async (req: Request, res: Response) => {
-    const order = await orderController.cancel(req.params.id);
+    const id = orderController.validateId(req.params.id);
+    const order = await orderController.cancel(id);
     res.json(order);
   })
 );
@@ -149,7 +152,8 @@ router.patch(
 router.patch(
   "/:id/deliver",
   asyncHandler(async (req: Request, res: Response) => {
-    const order = await orderController.deliver(req.params.id);
+    const id = orderController.validateId(req.params.id);
+    const order = await orderController.deliver(id);
     res.json(order);
   })
 );

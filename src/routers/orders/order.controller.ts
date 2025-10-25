@@ -17,9 +17,14 @@ function exceedHandler() {
   throw new ResponseError(message, 429);
 }
 
-function getOrderErrorHandler(e: Error) {
+function orderNotFoundHandler(e: ResponseError) {
   const message = "Order not found.";
   throw new ResponseError(message, 404, e.message);
+}
+
+function invalidInputHandler(e: ResponseError) {
+  const message = "Invalid input";
+  throw new ResponseError(message, 400, e.message);
 }
 
 const ordersCache = new MapAsyncCache<OrderDto[]>(config.cacheSize);
@@ -31,6 +36,28 @@ const orderCache = new MapAsyncCache<OrderDto>(config.cacheSize);
  * @desc Provides methods for order management including creation, status updates and retrieval
  */
 export default class OrderController {
+  // constructor(private readonly orderService: OrderService) { }
+
+  @onError({
+    func: orderNotFoundHandler,
+  })
+  public validateId(id: string): number {
+    return toInteger(id);
+  }
+
+  @onError({
+    func: invalidInputHandler,
+  })
+  public validateOrderCreationDto(order: OrderCreationDto): Order {
+    const newOrder = ZodOrderCreationDto.parse(order);
+    return {
+      ...newOrder,
+      id: orders.length + 1,
+      status: "Processing",
+      createdAt: new Date(),
+    };
+  }
+
   @rateLimit({
     timeSpanMs: config.rateLimitTimeSpan,
     allowedCalls: config.rateLimitAllowedCalls,
@@ -42,16 +69,9 @@ export default class OrderController {
    * @param {OrderCreationDto} order - Order creation data
    * @returns {Promise<Order>} Newly created order
    */
-  public async create(@ZodInput(ZodOrderCreationDto) order: OrderCreationDto) {
-    const newOrder = {
-      ...order,
-      id: orders.length + 1,
-      createdAt: new Date(),
-      status: "Processing",
-    } satisfies Order;
-
-    orders.push(newOrder);
-    orderCache.set(newOrder.id.toString(), newOrder as OrderDto);
+  public async create(order: Order) {
+    orders.push(order);
+    orderCache.set(order.id.toString(), order as OrderDto);
     ordersCache.delete("key");
   }
 
@@ -85,16 +105,15 @@ export default class OrderController {
     exceedHandler,
   })
   @onError({
-    func: getOrderErrorHandler,
+    func: orderNotFoundHandler,
   })
   /**
    * Finds an order by its ID
    * @param id - Order ID as string
    * @returns Order details or error object if not found
    */
-  public async get(id: string): Promise<OrderDto> {
-    const orderId = toInteger(id);
-    const order = orders.find((order) => order.id === orderId);
+  public async get(id: number): Promise<OrderDto> {
+    const order = orders.find((order) => order.id === id);
     if (order == null) {
       throw new ResponseError("User dose not exist.", 404);
     }
@@ -113,7 +132,7 @@ export default class OrderController {
    * @throws {ResponseError} 404 - Order not found
    * @throws {ResponseError} 400 - Invalid ID format or invalid status for cancellation
    */
-  public async cancel(id: string): Promise<OrderDto> {
+  public async cancel(id: number): Promise<OrderDto> {
     let order = await this.get(id);
     if (order.status != "Processing") {
       throw new ResponseError(
@@ -124,7 +143,7 @@ export default class OrderController {
     order.status = "Canceled";
     order.deliveredAt = new Date();
 
-    orderCache.set(id, order);
+    orderCache.set(id.toString(), order);
     ordersCache.delete("key");
     return order;
   }
@@ -141,7 +160,7 @@ export default class OrderController {
    * @throws {ResponseError} 404 - Order not found
    * @throws {ResponseError} 400 - Invalid ID format or invalid status for delivery
    */
-  public async deliver(id: string): Promise<OrderDto> {
+  public async deliver(id: number): Promise<OrderDto> {
     let order = await this.get(id);
     if (order.status != "Processing") {
       throw new ResponseError(
@@ -152,7 +171,7 @@ export default class OrderController {
     order.status = "Delivered";
     order.deliveredAt = new Date();
 
-    orderCache.set(id, order);
+    orderCache.set(id.toString(), order);
     ordersCache.delete("key");
     return order;
   }

@@ -2,6 +2,7 @@ import express, { NextFunction, Request, Response } from "express";
 import fs from "fs";
 import path from "path";
 import config from "./config";
+import { ResponseError } from "./utilities/error-handling";
 
 /**
  * Recursively loads Express routers from directory
@@ -68,9 +69,11 @@ if (config.devMode) {
 }
 
 // General error handler
-app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
-  res.status(500).json(err);
-});
+app.use(
+  (err: ResponseError, req: Request, res: Response, next: NextFunction) => {
+    res.status(500).json(err);
+  }
+);
 
 // Start the server
 app.listen(config.port, () => {

@@ -13,9 +13,14 @@ function exceedHandler() {
   throw new ResponseError(message, 429);
 }
 
-function getUserErrorHandler(e: Error) {
+function userNotFoundHandler(e: ResponseError) {
   const message = "User not found.";
   throw new ResponseError(message, 404, e.message);
+}
+
+function invalidInputHandler(e: ResponseError) {
+  const message = "Invalid input";
+  throw new ResponseError(message, 400, e.message);
 }
 
 const usersCache = new MapAsyncCache<UserDto[]>(config.cacheSize);
@@ -28,6 +33,21 @@ const userCache = new MapAsyncCache<UserDto>(config.cacheSize);
  */
 export default class UserController {
   // constructor(private readonly userService: UserService) { }
+
+  @onError({
+    func: userNotFoundHandler,
+  })
+  public validateId(id: string): number {
+    return toInteger(id);
+  }
+
+  @onError({
+    func: invalidInputHandler,
+  })
+  public validateUserCreationDto(user: UserCreationDto): User {
+    const newUser = ZodUserCreationDto.parse(user);
+    return { ...newUser, id: users.length + 1 };
+  }
 
   @rateLimit({
     timeSpanMs: config.rateLimitTimeSpan,
@@ -42,10 +62,9 @@ export default class UserController {
    * @throws {ResponseError} 500 - When rate limit exceeded
    * @throws {ResponseError} 400 - Invalid input data
    */
-  public async create(@ZodInput(ZodUserCreationDto) user: UserCreationDto) {
-    let newUser: User = { ...user, id: users.length + 1 };
-    users.push(newUser);
-    userCache.set(newUser.id.toString(), newUser as UserDto);
+  public async create(user: User) {
+    users.push(user);
+    userCache.set(user.id.toString(), user as UserDto);
     usersCache.delete("key");
   }
 
@@ -74,9 +93,6 @@ export default class UserController {
     keyResolver: (id: string) => id,
     expirationTimeMs: config.memoizeTime,
   })
-  @onError({
-    func: getUserErrorHandler,
-  })
   @rateLimit({
     timeSpanMs: config.rateLimitTimeSpan,
     allowedCalls: config.rateLimitAllowedCalls,
@@ -89,9 +105,8 @@ export default class UserController {
    * @throws {ResponseError} 404 - User not found
    * @throws {ResponseError} 400 - Invalid ID format
    */
-  public async get(id: string): Promise<UserDto> {
-    const response = toInteger(id);
-    const user = users.find((user) => user.id === response);
+  public async get(id: number): Promise<UserDto> {
+    const user = users.find((user) => user.id === id);
     if (user == null) {
       throw new ResponseError("User dose not exist.", 404);
     }

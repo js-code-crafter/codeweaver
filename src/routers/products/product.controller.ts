@@ -25,9 +25,14 @@ function exceedHandler() {
   throw new ResponseError(message, 429);
 }
 
-function getProductErrorHandler() {
+function productNotFoundHandler(e: ResponseError) {
   const message = "Product not found.";
-  throw new ResponseError(message, 404);
+  throw new ResponseError(message, 404, e.message);
+}
+
+function invalidInputHandler(e: ResponseError) {
+  const message = "Invalid input";
+  throw new ResponseError(message, 400, e.message);
 }
 
 const productsCache = new MapAsyncCache<ProductDto[]>(config.cacheSize);
@@ -39,6 +44,23 @@ const productCache = new MapAsyncCache<ProductDto>(config.cacheSize);
  * @desc Provides methods for product management including CRUD operations
  */
 export default class ProductController {
+  // constructor(private readonly productService: ProductService) { }
+
+  @onError({
+    func: productNotFoundHandler,
+  })
+  public validateId(id: string): number {
+    return toInteger(id);
+  }
+
+  @onError({
+    func: invalidInputHandler,
+  })
+  public validateProductCreationDto(product: ProductCreationDto): Product {
+    const newProduct = ZodProductCreationDto.parse(product);
+    return { ...newProduct, id: products.length + 1 };
+  }
+
   @rateLimit({
     timeSpanMs: config.rateLimitTimeSpan,
     allowedCalls: config.rateLimitAllowedCalls,
@@ -50,9 +72,7 @@ export default class ProductController {
    * @param product - Product creation data validated by Zod schema
    * @returns Newly created product with generated ID
    */
-  public async create(
-    @ZodInput(ZodProductCreationDto) product: ProductCreationDto
-  ): Promise<void> {
+  public async create(product: Product): Promise<void> {
     const newProduct: Product = {
       ...product,
       id: products.length + 1,
@@ -88,7 +108,7 @@ export default class ProductController {
     expirationTimeMs: config.memoizeTime,
   })
   @onError({
-    func: getProductErrorHandler,
+    func: productNotFoundHandler,
   })
   @rateLimit({
     timeSpanMs: config.rateLimitTimeSpan,
@@ -100,9 +120,8 @@ export default class ProductController {
    * @param id - Product ID as string
    * @returns Product details or error object if not found
    */
-  public async get(id: string): Promise<ProductDto> {
-    const productId = toInteger(id);
-    const product = products.find((product) => product.id === productId);
+  public async get(id: number): Promise<ProductDto> {
+    const product = products.find((product) => product.id === id);
     if (product == null) {
       throw new ResponseError("Product dose not exist.", 404);
     }
@@ -124,13 +143,13 @@ export default class ProductController {
    * @throws {ResponseError} 400 - Invalid ID format or update data
    */
   public async update(
-    id: string,
+    id: number,
     @ZodInput(ZodProductUpdateDto) updateData: ProductUpdateDto
   ): Promise<ProductDto> {
     const product = await this.get(id);
     if (product != null) {
       Object.assign(product, updateData);
-      productCache.set(id, product);
+      productCache.set(id.toString(), product);
       productsCache.delete("key");
     } else {
       throw new ResponseError("Product dose not exist.", 404);
@@ -151,13 +170,12 @@ export default class ProductController {
    * @throws {ResponseError} 404 - Product not found
    * @throws {ResponseError} 400 - Invalid ID format
    */
-  public async delete(id: string): Promise<ProductDto> {
-    const productId = toInteger(id);
-    const index = products.findIndex((product) => product.id === productId);
+  public async delete(id: number): Promise<ProductDto> {
+    const index = products.findIndex((product) => product.id === id);
     if (index == -1) {
       throw new ResponseError("Product dose not exist.", 404);
     }
-    productCache.delete(id);
+    productCache.delete(id.toString());
     productsCache.delete("key");
     return products.splice(index, 1)[0];
   }
