@@ -1,52 +1,37 @@
-import {
-  memoizeTime,
-  productionEnvironment,
-  rateLimitTimeSpan,
-  rateLimitAllowedCalls,
-  timeout,
-  portNumber,
-} from "./constants";
-
 /**
  * Server configuration interface
- * @interface
- * @property {string} url - Base server URL
  */
 interface Server {
+  /** URL of the base server */
   url: string;
 }
 
 /**
  * API information structure
- * @interface
- * @property {string} title - API title
- * @property {string} version - API version
- * @property {string} description - API description
  */
 interface Info {
+  /** Title of the API */
   title: string;
+  /** Version of the API */
   version: string;
+  /** Description of the API */
   description: string;
 }
 
 /**
  * Swagger definition structure
- * @interface
- * @property {string} openApi - OpenAPI specification version
- * @property {Info} info - API information
- * @property {Server[]} servers - List of server configurations
  */
 interface SwaggerDefinition {
+  /** OpenAPI specification version (e.g., "3.0.0") */
   openApi: string;
+  /** API information object */
   info: Info;
+  /** List of server configurations */
   servers: Server[];
 }
 
 /**
  * Swagger configuration options
- * @interface
- * @property {SwaggerDefinition} swaggerDefinition - Swagger definition object
- * @property {string[]} apis - Paths to API documentation files
  */
 export interface SwaggerOptions {
   swaggerDefinition: SwaggerDefinition;

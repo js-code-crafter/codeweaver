@@ -2,7 +2,7 @@
 
 ## Overview
 
-**Codeweaver** is a lightweight microframework created with `Express`, `TypeScript`, and `Zod` (v4), seamlessly integrated with `Swagger` for comprehensive API documentation. Its modular architecture for routers promotes scalability and organized development, making it easy to expand and maintain.
+**Codeweaver** is an unopinionated microframework built with `Express`, `TypeScript`, and `Zod` (v4), seamlessly integrated with `Swagger` for comprehensive API documentation. Its modular architecture for routers promotes scalability and organized development, making it easy to expand and maintain. Routers are automatically discovered and wired up through a conventional folder structure, simplifying project organization and reducing boilerplate. Routers can be nested, allowing you to compose complex route trees by placing sub-routers inside parent router folders. It also uses `utils-decorators`, a collection of middleware utilities (throttling, caching, and error handling) designed to strengthen application resilience.
 
 ## Features and Technologies Used
 
@@ -13,8 +13,7 @@
 - **Swagger Integration**: Automatically generates interactive API documentation, facilitating easier understanding of available endpoints for developers and consumers.
 - **Async Handlers**: Utilizes async/await syntax for cleaner, more maintainable asynchronous code without callback nesting.
 - **Zod**: Implements schema validation for input data.
-- **ts-zod-decorators**: Enables validation using Zod schemas through decorators.
-- **utils-decorators**: Provides middleware utilities such as throttling and error handling for a more robust application.
+- **utils-decorators**: A collection of middleware utilities (throttling, caching, and error handling) designed to strengthen application resilience.
 
 ## Installation
 
@@ -134,8 +133,9 @@ const userController = new UserController();
 router.post(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
-    const user = await userController.create(req.body);
-    res.status(201).json(user);
+    const user = await userController.validateUserCreationDto(req.body);
+    await userController.create(user);
+    res.status(201).send();
   })
 );
 
@@ -160,7 +160,8 @@ router.post(
 router.get(
   "/:id",
   asyncHandler(async (req: Request, res: Response) => {
-    const user = await userController.get(req.params.id);
+    const id = await userController.validateId(req.params.id);
+    const user = await userController.get(id);
     res.json(user);
   })
 );
@@ -190,135 +191,43 @@ export = router;
 **Controllers** in this Express TypeScript framework act as the intermediary between the incoming HTTP requests and the application logic. Each controller is responsible for handling specific routes and defining the behavior associated with those routes. This organization promotes a clean architecture by separating business logic, validation, and routing concerns.
 
 Controllers can be organized within the router folders, allowing them to stay closely related to their respective routes. However, they are not limited to this structure and can be placed anywhere within the `src` folder as needed, providing flexibility in organizing the codebase.
-
-Controllers leverage decorators from the `ts-zod-decorators` package to implement input validation and error handling gracefully. With validators like `@Validate`, controllers can ensure that incoming data adheres to defined schemas before any processing occurs, preventing invalid data from reaching the service layer. This capability enhances data integrity and application reliability.
-
-For example, in the provided `UserController`, the `createUser` method demonstrates how to apply input validation and error handling through decorators. It employs `@rateLimit` to restrict the number of allowed requests within a specified timeframe, effectively guarding against too many rapid submissions. When an error arises, the `@onError` decorator provides a systematic way to handle exceptions, allowing for logging or other error management processes to be performed centrally.
+Controllers leverage decorators from the `utils-decorators` package to implement throttling, caching, and error handling gracefully.
+For example, in the provided `UserController`, the `createUser` method demonstrates how to apply error handling through decorators. It also employs `@rateLimit` to restrict the number of allowed requests within a specified timeframe, effectively guarding against too many rapid submissions. When an error arises, the `@onError` decorator provides a systematic way to handle exceptions, allowing for logging or other error management processes to be performed centrally.
 
 Here’s a brief breakdown of key components used in the `UserController`:
 
-- **Validation**: The `CreateUserDto` is validated against incoming data using the `@ZodInput` decorator, ensuring that only well-formed data is passed to the business logic, which is crucial for maintaining application stability.
-
-```typescript
-import { z } from "zod";
-
-/**
- * Zod schema for User entity
- * @typedef {Object} ZodUser
- * @property {number} id - Unique identifier (min 1)
- * @property {string} username - Username (min 3 chars)
- * @property {string} email - Valid email format
- * @property {string} password - Password (min 6 chars)
- */
-export const ZodUser = z.object({
-  id: z.number().min(1).int(),
-  username: z.string().min(3),
-  email: z.email(),
-  password: z.string().min(6),
-});
-
-export const ZodUserCreationDto = ZodUser.omit({ id: true });
-export const ZodUserDto = ZodUser.omit({ password: true });
-
-export type User = z.infer<typeof ZodUser>;
-export type UserCreationDto = z.infer<typeof ZodUserCreationDto>;
-export type UserDto = z.infer<typeof ZodUserDto>;
-```
-
-- **Throttling and Rate Limiting**: The `@rateLimit` decorator is applied to safeguard the application's endpoints from abuse by limiting how frequently a particular method can be invoked.
-
-- **Error Handling**: The `@onError` decorator captures any exceptions that occur during the execution of the createUser method, allowing for centralized error management, which can greatly simplify debugging and improve maintainability.
-
-By using a well-organized controller structure, this project makes it easier to add, modify, and manage endpoints as the application grows. Developers can focus on implementing business logic while the controllers handle the intricacies of request parsing, validation, and response formatting. Additionally, this separation of concerns improves unit testing, as controllers can be tested independently from the rest of the application logic, ensuring robust and reliable API behavior.
-
-Here is a quick reference to the UserController in practice:
-
 ```typescript
 import {
-  User,
   ZodUserCreationDto,
   UserCreationDto,
   UserDto,
+  ZodUserDto,
 } from "./dto/user.dto";
 import { memoizeAsync, onError, rateLimit, timeout } from "utils-decorators";
-import { Validate, ZodInput } from "ts-zod4-decorators";
-import { ResponseError } from "@/types";
-import { parseId } from "@/utilities/error-handling";
+import { ResponseError } from "@/utilities/error-handling";
+import { convert, stringToInteger } from "@/utilities/conversion";
 import config from "@/config";
-
-// Array to store users (as a mock database)
-const users = [
-  {
-    id: 1,
-    username: "johndoe",
-    email: "johndoe@gmail.com",
-    password: "S3cur3P@ssw0rd",
-  },
-  {
-    id: 2,
-    username: "janesmith",
-    email: "janesmith@yahoo.com",
-    password: "P@ssw0rd2024",
-  },
-  {
-    id: 3,
-    username: "michael89",
-    email: "michael89@hotmail.com",
-    password: "M1chael!2024",
-  },
-  {
-    id: 4,
-    username: "lisa.wong",
-    email: "lisa.wong@example.com",
-    password: "L1saW0ng!2024",
-  },
-  {
-    id: 5,
-    username: "alex_k",
-    email: "alex.k@gmail.com",
-    password: "A1ex#Key2024",
-  },
-  {
-    id: 6,
-    username: "emilyj",
-    email: "emilyj@hotmail.com",
-    password: "Em!ly0101",
-  },
-  {
-    id: 7,
-    username: "davidparker",
-    email: "david.parker@yahoo.com",
-    password: "D@v!d2024",
-  },
-  {
-    id: 8,
-    username: "sophia_m",
-    email: "sophia.m@gmail.com",
-    password: "Sophi@2024",
-  },
-  {
-    id: 9,
-    username: "chrisw",
-    email: "chrisw@outlook.com",
-    password: "Chri$Wong21",
-  },
-  {
-    id: 10,
-    username: "natalie_b",
-    email: "natalie_b@gmail.com",
-    password: "N@talie#B2024",
-  },
-];
+import { users } from "@/db";
+import { User } from "@/entities/user.entity";
+import { MapAsyncCache } from "@/utilities/cache/memory-cache";
 
 function exceedHandler() {
   const message = "Too much call in allowed window";
   throw new ResponseError(message, 429);
 }
 
-function getUserErrorHandler(e: Error) {
+function userNotFoundHandler(e: ResponseError) {
   const message = "User not found.";
-  throw new ResponseError(message, 404, e.message);
+  throw new ResponseError(message, 404, e?.message);
 }
+
+function invalidInputHandler(e: ResponseError) {
+  const message = "Invalid input";
+  throw new ResponseError(message, 400, e?.message);
+}
+
+const usersCache = new MapAsyncCache<UserDto[]>(config.cacheSize);
+const userCache = new MapAsyncCache<UserDto>(config.cacheSize);
 
 /**
  * Controller for handling user-related operations
@@ -328,26 +237,75 @@ function getUserErrorHandler(e: Error) {
 export default class UserController {
   // constructor(private readonly userService: UserService) { }
 
+  @onError({
+    func: invalidInputHandler,
+  })
+  /**
+   * Validates a string ID and converts it to a number.
+   *
+   * @param {string} id - The ID to validate and convert.
+   * @returns {number} The numeric value of the provided ID.
+   */
+  public async validateId(id: string): Promise<number> {
+    return stringToInteger(id);
+  }
+
+  @onError({
+    func: invalidInputHandler,
+  })
+  /**
+   * Validates and creates a new User from the given DTO.
+   *
+   * @param {UserCreationDto} user - The incoming UserCreationDto to validate and transform.
+   * @returns {User} A fully formed User object ready for persistence.
+   */
+  public async validateUserCreationDto(user: UserCreationDto): Promise<User> {
+    const newUser = await ZodUserCreationDto.parseAsync(user);
+    return { ...newUser, id: users.length + 1 };
+  }
+
   @rateLimit({
     timeSpanMs: config.rateLimitTimeSpan,
     allowedCalls: config.rateLimitAllowedCalls,
     exceedHandler,
   })
-  @Validate
   /**
    * Create a new user
-   * @param {UserCreationDto} user - User creation data validated by Zod schema
+   * @param {User} user - User creation data validated by Zod schema
    * @returns {Promise<void>}
    * @throws {ResponseError} 500 - When rate limit exceeded
    * @throws {ResponseError} 400 - Invalid input data
    */
-  public async create(@ZodInput(ZodUserCreationDto) user: UserCreationDto) {
-    users.push({ ...user, id: users.length + 1 });
+  public async create(user: User): Promise<void> {
+    users.push(user);
+    await userCache.set(user.id.toString(), user as User);
+    await usersCache.delete("key");
   }
 
-  @memoizeAsync(config.memoizeTime)
-  @onError({
-    func: getUserErrorHandler,
+  @memoizeAsync({
+    cache: usersCache,
+    keyResolver: () => "key",
+    expirationTimeMs: config.memoizeTime,
+  })
+  @timeout(config.timeout)
+  @rateLimit({
+    timeSpanMs: config.rateLimitTimeSpan,
+    allowedCalls: config.rateLimitAllowedCalls,
+    exceedHandler,
+  })
+  /**
+   * Get all users
+   * @returns {Promise<UserDto[]>} List of users with hidden password fields
+   * @throws {ResponseError} 500 - When rate limit exceeded
+   */
+  public async getAll(): Promise<UserDto[]> {
+    return users as UserDto[];
+  }
+
+  @memoizeAsync({
+    cache: userCache,
+    keyResolver: (id: number) => id.toString(),
+    expirationTimeMs: config.memoizeTime,
   })
   @rateLimit({
     timeSpanMs: config.rateLimitTimeSpan,
@@ -356,35 +314,17 @@ export default class UserController {
   })
   /**
    * Get user by ID
-   * @param {string} id - User ID as string
-   * @returns {Promise<User>} User details or error object
+   * @param {number} id - User ID as string
+   * @returns {Promise<UserDto>} User details or error object
    * @throws {ResponseError} 404 - User not found
    * @throws {ResponseError} 400 - Invalid ID format
    */
-  public async get(id: string): Promise<UserDto> {
-    const response = parseId(id);
-    const user = users.find((user) => user.id === response);
-    if (user == null) throw new ResponseError("User dose not exist.", 404);
-    return user satisfies User;
-  }
-
-  @memoizeAsync(config.memoizeTime)
-  @timeout(config.timeout)
-  @rateLimit({
-    timeSpanMs: config.rateLimitTimeSpan,
-    allowedCalls: config.rateLimitAllowedCalls,
-    exceedHandler,
-  })
-  /**
-   * Get all users with masked passwords
-   * @returns {Promise<UserDto[]>} List of users with hidden password fields
-   * @throws {ResponseError} 500 - When rate limit exceeded
-   */
-  public async getAll(): Promise<UserDto[]> {
-    return users.map((user) => ({
-      ...user,
-      password: "?",
-    }));
+  public async get(id: number): Promise<UserDto> {
+    const user = users.find((user) => user.id === id);
+    if (user == null) {
+      throw new ResponseError("Product not found");
+    }
+    return convert(user!, ZodUserDto);
   }
 }
 ```
@@ -401,7 +341,7 @@ Once the application is running, visit the Swagger UI at http://localhost:3000/a
 
 ### Decorators
 
-To prevent abuse of your API, you can utilize throttling, and validation decorators from the `utils-decorators` and `ts-zod-decorators` packages respectively. This packages provides decorators that can be applied directly to your service and controller classes.
+To prevent abuse of your API, you can utilize throttling, caching, and error handling decorators from the `utils-decorators` packages respectively. This packages provides decorators that can be applied directly to your service and controller classes.
 
 ### Contributing
 

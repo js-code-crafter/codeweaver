@@ -22,11 +22,11 @@ const orderController = new OrderController();
  *         schema:
  *           type: object
  *           required:
- *             - orderId
+ *             - userId
  *             - products
  *             - total
  *           properties:
- *             orderId:
+ *             userId:
  *               type: integer
  *               minimum: 1
  *               example: 1
@@ -58,9 +58,9 @@ const orderController = new OrderController();
 router.post(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
-    const order = orderController.validateOrderCreationDto(req.body);
+    const order = await orderController.validateOrderCreationDto(req.body);
     await orderController.create(order);
-    res.status(201);
+    res.status(201).send();;
   })
 );
 
@@ -100,7 +100,7 @@ router.get(
 router.get(
   "/:id",
   asyncHandler(async (req: Request, res: Response) => {
-    const id = orderController.validateId(req.params.id);
+    const id = await orderController.validateId(req.params.id);
     const order = await orderController.get(id);
     res.json(order);
   })
@@ -125,7 +125,7 @@ router.get(
 router.patch(
   "/:id/cancel",
   asyncHandler(async (req: Request, res: Response) => {
-    const id = orderController.validateId(req.params.id);
+    const id = await orderController.validateId(req.params.id);
     const order = await orderController.cancel(id);
     res.json(order);
   })
@@ -152,7 +152,7 @@ router.patch(
 router.patch(
   "/:id/deliver",
   asyncHandler(async (req: Request, res: Response) => {
-    const id = orderController.validateId(req.params.id);
+    const id = await orderController.validateId(req.params.id);
     const order = await orderController.deliver(id);
     res.json(order);
   })

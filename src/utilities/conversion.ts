@@ -1,3 +1,4 @@
+import { z, ZodRawShape } from "zod";
 import { ResponseError } from "./error-handling";
 
 /**
@@ -36,7 +37,7 @@ function parseIntegerStrict(input: string): number {
  * @returns The parsed integer
  * @throws {ResponseError} When the input cannot be parsed as an integer
  */
-export function toInteger(input: string): number {
+export function stringToInteger(input: string): number {
   try {
     return parseIntegerStrict(input);
   } catch {
@@ -60,7 +61,7 @@ export function toInteger(input: string): number {
  * @returns The parsed boolean
  * @throws {ResponseError} When the input cannot be parsed as a boolean
  */
-export function toBoolean(input: string): boolean {
+export function stringToBoolean(input: string): boolean {
   const s = input.trim().toLowerCase();
 
   if (["true", "1", "yes", "y"].includes(s)) {
@@ -85,7 +86,7 @@ export function toBoolean(input: string): boolean {
  * @returns The parsed number
  * @throws {ResponseError} When the input cannot be parsed as a number
  */
-export function toNumber(input: string): number {
+export function stringToNumber(input: string): number {
   try {
     // Trim and convert
     const n = Number(input.trim());
@@ -99,4 +100,59 @@ export function toNumber(input: string): number {
   } catch {
     throw new ResponseError("The input parameter must be a valid number.", 400);
   }
+}
+
+/**
+ * Strictly convert obj (type T1) to T2 using a Zod schema.
+ *
+ * - Extras in obj are ignored (no throw).
+ * - Validates fields with the schema; on failure, throws with a descriptive message.
+ * - Returns an object typed as T2 (inferred from the schema).
+ *
+ * @param obj - Source object of type T1
+ * @param schema - Zod schema describing the target type T2
+ * @returns T2 inferred from the provided schema
+ */
+export function convert<T1 extends object, T2 extends object>(
+  obj: T1,
+  schema: z.ZodObject<any>
+): T2 {
+  // 1) Derive the runtime keys from the schema's shape
+  const shape = (schema as any)._def?.shape as ZodRawShape | undefined;
+  if (!shape) {
+    throw new ResponseError(
+      "convertStrictlyFromSchema: provided schema has no shape.",
+      500
+    );
+  }
+
+  const keysSchema = Object.keys(shape) as Array<keyof any>;
+
+  // 2) Build a plain object to pass through Zod for validation
+  // Include only keys that exist on the schema (ignore extras in obj)
+  const candidate: any = {};
+  for (const k of keysSchema) {
+    if ((obj as any).hasOwnProperty(k)) {
+      candidate[k] = (obj as any)[k];
+    }
+  }
+
+  // 3) Validate against the schema
+  const result = schema.safeParse(candidate);
+  if (!result.success) {
+    // Modern, non-format error reporting
+    const issues = result.error.issues.map((i) => ({
+      path: i.path, // where the issue occurred
+      message: i.message, // human-friendly message
+      code: i.code, // e.g., "too_small", "invalid_type"
+    }));
+    // You can log issues or throw a structured error
+    throw new ResponseError(
+      `convertStrictlyFromSchema: validation failed: ${JSON.stringify(issues)}`,
+      500
+    );
+  }
+
+  // 4) Return the validated data typed as T2
+  return result.data as T2;
 }

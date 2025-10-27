@@ -1,6 +1,6 @@
 {
   "name": "codeweaver",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "main": "src/main.ts",
   "bin": {
     "create-codeweaver-app": "./command.js"
@@ -26,22 +26,24 @@
     "nested routers",
     "decorator",
     "swagger",
-    "zod"
+    "zod",
+    "utils-decorators"
   ],
   "author": "js-code-crafter",
   "license": "MIT",
   "description": "A lightweight framework built on top of Express and TypeScript",
   "dependencies": {
+    "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "express-async-handler": "^1.2.0",
     "ioredis": "^5.8.2",
     "swagger-jsdoc": "^3.7.0",
-    "ts-zod4-decorators": "^1.0.0",
     "utils-decorators": "^2.10.0",
     "zod": "^4.0.14"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/node": "^24.1.0",
     "copyfiles": "^2.4.1",

@@ -7,52 +7,8 @@ import {
   portNumber,
   cacheSize,
 } from "./constants";
-
-/**
- * Server configuration interface
- * @interface
- * @property {string} url - Base server URL
- */
-interface Server {
-  url: string;
-}
-
-/**
- * API information structure
- * @interface
- * @property {string} title - API title
- * @property {string} version - API version
- * @property {string} description - API description
- */
-interface Info {
-  title: string;
-  version: string;
-  description: string;
-}
-
-/**
- * Swagger definition structure
- * @interface
- * @property {string} openApi - OpenAPI specification version
- * @property {Info} info - API information
- * @property {Server[]} servers - List of server configurations
- */
-interface SwaggerDefinition {
-  openApi: string;
-  info: Info;
-  servers: Server[];
-}
-
-/**
- * Swagger configuration options
- * @interface
- * @property {SwaggerDefinition} swaggerDefinition - Swagger definition object
- * @property {string[]} apis - Paths to API documentation files
- */
-interface SwaggerOptions {
-  swaggerDefinition: SwaggerDefinition;
-  apis: string[];
-}
+import { SwaggerOptions } from "./swagger-options";
+import { stringToBoolean } from "./utilities/conversion";
 
 /**
  * Main application configuration
@@ -64,6 +20,7 @@ interface SwaggerOptions {
 interface Config {
   devMode: boolean;
   port: number;
+  swagger: boolean;
   swaggerOptions: SwaggerOptions;
   timeout: number;
   rateLimitTimeSpan: number;
@@ -77,6 +34,7 @@ const port = Number(process.env.PORT) || portNumber;
 let config: Config = {
   devMode: process.env.NODE_ENV !== productionEnvironment,
   port,
+  swagger: stringToBoolean(process.env.SWAGGER || "true"),
   swaggerOptions: {
     swaggerDefinition: {
       openApi: "3.0.0",
@@ -92,10 +50,10 @@ let config: Config = {
       ],
     },
     apis: [
-      "./src/routers/index.ts",
-      "./src/routers/**/*.ts",
-      "./src/routers/index.js",
-      "./src/routers/**/*.js",
+      "./src/routers/index.router.ts",
+      "./src/routers/**/*.router.ts",
+      "./src/routers/index.router.js",
+      "./src/routers/**/*.router.js",
     ], // Path to the API docs
   },
   timeout: Number(process.env.TIMEOUT) || timeout,

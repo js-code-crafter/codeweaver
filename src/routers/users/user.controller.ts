@@ -1,8 +1,12 @@
-import { ZodUserCreationDto, UserCreationDto, UserDto } from "./dto/user.dto";
+import {
+  ZodUserCreationDto,
+  UserCreationDto,
+  UserDto,
+  ZodUserDto,
+} from "./dto/user.dto";
 import { memoizeAsync, onError, rateLimit, timeout } from "utils-decorators";
-import { Validate, ZodInput } from "ts-zod4-decorators";
 import { ResponseError } from "@/utilities/error-handling";
-import { toInteger } from "@/utilities/conversion";
+import { convert, stringToInteger } from "@/utilities/conversion";
 import config from "@/config";
 import { users } from "@/db";
 import { User } from "@/entities/user.entity";
@@ -15,12 +19,12 @@ function exceedHandler() {
 
 function userNotFoundHandler(e: ResponseError) {
   const message = "User not found.";
-  throw new ResponseError(message, 404, e.message);
+  throw new ResponseError(message, 404, e?.message);
 }
 
 function invalidInputHandler(e: ResponseError) {
   const message = "Invalid input";
-  throw new ResponseError(message, 400, e.message);
+  throw new ResponseError(message, 400, e?.message);
 }
 
 const usersCache = new MapAsyncCache<UserDto[]>(config.cacheSize);
@@ -35,17 +39,29 @@ export default class UserController {
   // constructor(private readonly userService: UserService) { }
 
   @onError({
-    func: userNotFoundHandler,
+    func: invalidInputHandler,
   })
-  public validateId(id: string): number {
-    return toInteger(id);
+  /**
+   * Validates a string ID and converts it to a number.
+   *
+   * @param {string} id - The ID to validate and convert.
+   * @returns {number} The numeric value of the provided ID.
+   */
+  public async validateId(id: string): Promise<number> {
+    return stringToInteger(id);
   }
 
   @onError({
     func: invalidInputHandler,
   })
-  public validateUserCreationDto(user: UserCreationDto): User {
-    const newUser = ZodUserCreationDto.parse(user);
+  /**
+   * Validates and creates a new User from the given DTO.
+   *
+   * @param {UserCreationDto} user - The incoming UserCreationDto to validate and transform.
+   * @returns {User} A fully formed User object ready for persistence.
+   */
+  public async validateUserCreationDto(user: UserCreationDto): Promise<User> {
+    const newUser = await ZodUserCreationDto.parseAsync(user);
     return { ...newUser, id: users.length + 1 };
   }
 
@@ -54,18 +70,17 @@ export default class UserController {
     allowedCalls: config.rateLimitAllowedCalls,
     exceedHandler,
   })
-  @Validate
   /**
    * Create a new user
-   * @param {UserCreationDto} user - User creation data validated by Zod schema
+   * @param {User} user - User creation data validated by Zod schema
    * @returns {Promise<void>}
    * @throws {ResponseError} 500 - When rate limit exceeded
    * @throws {ResponseError} 400 - Invalid input data
    */
-  public async create(user: User) {
+  public async create(user: User): Promise<void> {
     users.push(user);
-    userCache.set(user.id.toString(), user as UserDto);
-    usersCache.delete("key");
+    await userCache.set(user.id.toString(), user as User);
+    await usersCache.delete("key");
   }
 
   @memoizeAsync({
@@ -81,7 +96,7 @@ export default class UserController {
   })
   /**
    * Get all users
-   * @returns {Promise<User[]>} List of users with hidden password fields
+   * @returns {Promise<UserDto[]>} List of users with hidden password fields
    * @throws {ResponseError} 500 - When rate limit exceeded
    */
   public async getAll(): Promise<UserDto[]> {
@@ -90,7 +105,7 @@ export default class UserController {
 
   @memoizeAsync({
     cache: userCache,
-    keyResolver: (id: string) => id,
+    keyResolver: (id: number) => id.toString(),
     expirationTimeMs: config.memoizeTime,
   })
   @rateLimit({
@@ -100,16 +115,16 @@ export default class UserController {
   })
   /**
    * Get user by ID
-   * @param {string} id - User ID as string
-   * @returns {Promise<User>} User details or error object
+   * @param {number} id - User ID as string
+   * @returns {Promise<UserDto>} User details or error object
    * @throws {ResponseError} 404 - User not found
    * @throws {ResponseError} 400 - Invalid ID format
    */
   public async get(id: number): Promise<UserDto> {
     const user = users.find((user) => user.id === id);
     if (user == null) {
-      throw new ResponseError("User dose not exist.", 404);
+      throw new ResponseError("Product not found");
     }
-    return user as UserDto;
+    return convert(user!, ZodUserDto);
   }
 }

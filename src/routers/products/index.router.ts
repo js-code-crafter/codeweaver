@@ -63,9 +63,11 @@ const productController = new ProductController();
 router.post(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
-    const product = productController.validateProductCreationDto(req.body);
+    const product = await productController.validateProductCreationDto(
+      req.body
+    );
     await productController.create(product);
-    res.status(201);
+    res.status(201).send();
   })
 );
 
@@ -104,7 +106,7 @@ router.get(
 router.get(
   "/:id",
   asyncHandler(async (req: Request, res: Response) => {
-    const id = productController.validateId(req.params.id);
+    const id = await productController.validateId(req.params.id);
     const product = await productController.get(id);
     res.json(product);
   })
@@ -166,7 +168,7 @@ router.get(
 router.put(
   "/:id",
   asyncHandler(async (req: Request, res: Response) => {
-    const id = productController.validateId(req.params.id);
+    const id = await productController.validateId(req.params.id);
     const product = await productController.update(id, req.body);
     res.json(product);
   })
@@ -195,7 +197,7 @@ router.put(
 router.delete(
   "/:id",
   asyncHandler(async (req: Request, res: Response) => {
-    const id = productController.validateId(req.params.id);
+    const id = await productController.validateId(req.params.id);
     const product = await productController.delete(id);
     res.json(product);
   })

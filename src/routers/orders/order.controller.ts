@@ -4,12 +4,11 @@ import {
   OrderCreationDto,
   ZodOrderCreationDto,
 } from "./dto/order.dto";
-import { Validate, ZodInput } from "ts-zod4-decorators";
 import { ResponseError } from "@/utilities/error-handling";
-import { toInteger } from "@/utilities/conversion";
+import { convert, stringToInteger } from "@/utilities/conversion";
 import config from "@/config";
 import { orders } from "@/db";
-import { Order } from "@/entities/order.entity";
+import { Order, ZodOrder } from "@/entities/order.entity";
 import { MapAsyncCache } from "@/utilities/cache/memory-cache";
 
 function exceedHandler() {
@@ -41,15 +40,29 @@ export default class OrderController {
   @onError({
     func: orderNotFoundHandler,
   })
-  public validateId(id: string): number {
-    return toInteger(id);
+  /**
+   * Validates a string ID and converts it to a number.
+   *
+   * @param {string} id - The ID to validate and convert.
+   * @returns {number} The numeric value of the provided ID.
+   */
+  public async validateId(id: string): Promise<number> {
+    return stringToInteger(id);
   }
 
   @onError({
     func: invalidInputHandler,
   })
-  public validateOrderCreationDto(order: OrderCreationDto): Order {
-    const newOrder = ZodOrderCreationDto.parse(order);
+  /**
+   * Validates and creates a new Order from the given DTO.
+   *
+   * @param {OrderCreationDto} order - The incoming OrderCreationDto to validate and transform.
+   * @returns {Order} A fully formed Order object ready for persistence.
+   */
+  public async validateOrderCreationDto(
+    order: OrderCreationDto
+  ): Promise<Order> {
+    const newOrder = await ZodOrderCreationDto.parseAsync(order);
     return {
       ...newOrder,
       id: orders.length + 1,
@@ -63,16 +76,17 @@ export default class OrderController {
     allowedCalls: config.rateLimitAllowedCalls,
     exceedHandler,
   })
-  @Validate
   /**
    * Create a new order
-   * @param {OrderCreationDto} order - Order creation data
-   * @returns {Promise<Order>} Newly created order
+   * @param {Order} order - Order creation data
+   * @returns {Promise<void>}
+   * @throws {ResponseError} 500 - When rate limit exceeded
+   * @throws {ResponseError} 400 - Invalid input data
    */
-  public async create(order: Order) {
+  public async create(order: Order): Promise<void> {
     orders.push(order);
-    orderCache.set(order.id.toString(), order as OrderDto);
-    ordersCache.delete("key");
+    await orderCache.set(order.id.toString(), order as OrderDto);
+    await ordersCache.delete("key");
   }
 
   @memoizeAsync({
@@ -96,7 +110,7 @@ export default class OrderController {
 
   @memoizeAsync({
     cache: orderCache,
-    keyResolver: (id: string) => id,
+    keyResolver: (id: number) => id.toString(),
     expirationTimeMs: config.memoizeTime,
   })
   @rateLimit({
@@ -104,20 +118,17 @@ export default class OrderController {
     allowedCalls: config.rateLimitAllowedCalls,
     exceedHandler,
   })
-  @onError({
-    func: orderNotFoundHandler,
-  })
   /**
    * Finds an order by its ID
-   * @param id - Order ID as string
+   * @param {number} id - Order ID as string
    * @returns Order details or error object if not found
    */
   public async get(id: number): Promise<OrderDto> {
     const order = orders.find((order) => order.id === id);
     if (order == null) {
-      throw new ResponseError("User dose not exist.", 404);
+      throw new ResponseError("Order not found");
     }
-    return order as OrderDto;
+    return convert(order!, ZodOrder);
   }
 
   @rateLimit({
@@ -127,7 +138,7 @@ export default class OrderController {
   })
   /**
    * Cancel an existing order
-   * @param {string} id - Order ID to cancel
+   * @param {number} id - Order ID to cancel
    * @returns {Promise<Order>} Updated order or error object
    * @throws {ResponseError} 404 - Order not found
    * @throws {ResponseError} 400 - Invalid ID format or invalid status for cancellation
@@ -143,8 +154,8 @@ export default class OrderController {
     order.status = "Canceled";
     order.deliveredAt = new Date();
 
-    orderCache.set(id.toString(), order);
-    ordersCache.delete("key");
+    await orderCache.set(id.toString(), order);
+    await ordersCache.delete("key");
     return order;
   }
 
@@ -155,7 +166,7 @@ export default class OrderController {
   })
   /**
    * Mark an order as delivered
-   * @param {string} id - Order ID to mark as delivered
+   * @param {number} id - Order ID to mark as delivered
    * @returns {Promise<Order>} Updated order or error object
    * @throws {ResponseError} 404 - Order not found
    * @throws {ResponseError} 400 - Invalid ID format or invalid status for delivery
@@ -171,8 +182,8 @@ export default class OrderController {
     order.status = "Delivered";
     order.deliveredAt = new Date();
 
-    orderCache.set(id.toString(), order);
-    ordersCache.delete("key");
+    await orderCache.set(id.toString(), order);
+    await ordersCache.delete("key");
     return order;
   }
 }

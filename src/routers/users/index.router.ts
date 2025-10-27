@@ -45,9 +45,9 @@ const userController = new UserController();
 router.post(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
-    const user = userController.validateUserCreationDto(req.body);
+    const user = await userController.validateUserCreationDto(req.body);
     await userController.create(user);
-    res.status(201);
+    res.status(201).send();
   })
 );
 
@@ -72,7 +72,7 @@ router.post(
 router.get(
   "/:id",
   asyncHandler(async (req: Request, res: Response) => {
-    const id = userController.validateId(req.params.id);
+    const id = await userController.validateId(req.params.id);
     const user = await userController.get(id);
     res.json(user);
   })

@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import config from "./config";
 import { ResponseError } from "./utilities/error-handling";
+require("./app");
 
 /**
  * Recursively loads Express routers from directory
@@ -54,14 +55,12 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-//app.use(cors());
-
 // Automatically import all routers from the /src/routers directory
 const routersPath = path.join(__dirname, "/routers");
 loadRouters(routersPath);
 
 // Swagger setup
-if (config.devMode) {
+if (config.swagger) {
   const swaggerJsDoc = require("swagger-jsdoc");
   const swaggerUi = require("swagger-ui-express");
   const swaggerDocs = swaggerJsDoc(config.swaggerOptions);
@@ -71,7 +70,7 @@ if (config.devMode) {
 // General error handler
 app.use(
   (err: ResponseError, req: Request, res: Response, next: NextFunction) => {
-    res.status(500).json(err);
+    res.status(err.status ?? 500).json(err);
   }
 );
 

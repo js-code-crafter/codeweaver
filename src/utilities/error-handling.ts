@@ -43,8 +43,7 @@ export class ResponseError extends Error {
   ) {
     // Ensure the base Error class gets the message for standard properties like name, stack, etc.
     super(message);
-    // Optional: Set the name to distinguish this error type
-    this.name = code ?? "ResponseError";
+
     // If a custom stack is provided, you might assign it; otherwise, the runtime stack will be used.
     if (stack) this.stack = stack;
   }
