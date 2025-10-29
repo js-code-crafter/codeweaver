@@ -3,7 +3,8 @@ import fs from "fs";
 import path from "path";
 import config from "./config";
 import { ResponseError } from "./utilities/error-handling";
-require("./app");
+import { resolve } from "./utilities/container";
+import { WinstonLoggerService } from "./utilities/logger/winston-logger.service";
 
 /**
  * Recursively loads Express routers from directory
@@ -67,10 +68,18 @@ if (config.swagger) {
   app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 }
 
+const logger = resolve(WinstonLoggerService);
+
 // General error handler
 app.use(
-  (err: ResponseError, req: Request, res: Response, next: NextFunction) => {
-    res.status(err.status ?? 500).json(err);
+  (error: ResponseError, req: Request, res: Response, next: NextFunction) => {
+    const status = error.status ?? 500;
+    res.status(status).json(error);
+    if (status < 500) {
+      logger.warn(error.message, "Invalid request", error.details);
+    } else {
+      logger.error(error.message, "Server error", error.details);
+    }
   }
 );
 

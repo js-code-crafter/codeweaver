@@ -1,9 +1,10 @@
 import { Router, Request, Response } from "express";
 import asyncHandler from "express-async-handler";
 import UserController from "./user.controller";
+import { resolve } from "@/utilities/container";
 
 const router = Router();
-const userController = new UserController();
+const userController = resolve(UserController);
 
 /**
  * @swagger

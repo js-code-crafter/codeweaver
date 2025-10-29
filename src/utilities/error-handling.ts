@@ -154,3 +154,39 @@ export function isSuccessful<T>(result: ReturnInfo<T>): boolean {
 export function hasError<T>(result: ReturnInfo<T>): boolean {
   return result[1] !== null;
 }
+
+/**
+ * Indicates whether a ReturnInfo value represents an error.
+ *
+ * This is the logical negation of isSuccess for a given ReturnInfo.
+ *
+ * @template T
+ * @param result - The ReturnInfo tuple [value | null, error | null]
+ * @returns true if an error is present (i.e., error is not null); false otherwise
+ */
+export function then<T>(
+  result: ReturnInfo<T>,
+  callback: (object: T) => void
+): void {
+  if (isSuccessful(result)) {
+    callback(successfulResult(result)!);
+  }
+}
+
+/**
+ * Indicates whether a ReturnInfo value represents an error.
+ *
+ * This is the logical negation of isSuccess for a given ReturnInfo.
+ *
+ * @template T
+ * @param result - The ReturnInfo tuple [value | null, error | null]
+ * @returns true if an error is present (i.e., error is not null); false otherwise
+ */
+export function catchError<T>(
+  result: ReturnInfo<T>,
+  callback: (error: ResponseError) => void
+): void {
+  if (hasError(result)) {
+    callback(error(result)!);
+  }
+}

@@ -1,9 +1,10 @@
 import { Router, Request, Response } from "express";
 import asyncHandler from "express-async-handler";
 import OrderController from "./order.controller";
+import { resolve } from "@/utilities/container";
 
 const router = Router();
-const orderController = new OrderController();
+const orderController = resolve(OrderController);
 
 /**
  * @swagger
@@ -60,7 +61,7 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const order = await orderController.validateOrderCreationDto(req.body);
     await orderController.create(order);
-    res.status(201).send();;
+    res.status(201).send();
   })
 );
 

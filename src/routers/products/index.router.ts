@@ -1,9 +1,10 @@
 import { Router, Request, Response } from "express";
 import asyncHandler from "express-async-handler";
 import ProductController from "./product.controller";
+import { resolve } from "@/utilities/container";
 
 const router = Router();
-const productController = new ProductController();
+const productController = resolve(ProductController);
 
 // CRUD Routes
 

@@ -10,15 +10,11 @@ import config from "@/config";
 import { orders } from "@/db";
 import { Order, ZodOrder } from "@/entities/order.entity";
 import { MapAsyncCache } from "@/utilities/cache/memory-cache";
+import { Injectable } from "@/utilities/container";
 
 function exceedHandler() {
   const message = "Too much call in allowed window";
   throw new ResponseError(message, 429);
-}
-
-function orderNotFoundHandler(e: ResponseError) {
-  const message = "Order not found.";
-  throw new ResponseError(message, 404, e.message);
 }
 
 function invalidInputHandler(e: ResponseError) {
@@ -29,6 +25,7 @@ function invalidInputHandler(e: ResponseError) {
 const ordersCache = new MapAsyncCache<OrderDto[]>(config.cacheSize);
 const orderCache = new MapAsyncCache<OrderDto>(config.cacheSize);
 
+@Injectable()
 /**
  * Controller for handling order-related operations
  * @class OrderController
@@ -38,7 +35,7 @@ export default class OrderController {
   // constructor(private readonly orderService: OrderService) { }
 
   @onError({
-    func: orderNotFoundHandler,
+    func: invalidInputHandler,
   })
   /**
    * Validates a string ID and converts it to a number.

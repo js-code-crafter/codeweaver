@@ -1,6 +1,6 @@
 {
   "name": "codeweaver",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "main": "src/main.ts",
   "bin": {
     "create-codeweaver-app": "./command.js"
@@ -37,9 +37,14 @@
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "express-async-handler": "^1.2.0",
+    "express-winston": "^4.2.0",
     "ioredis": "^5.8.2",
+    "logform": "^2.7.0",
+    "reflect-metadata": "^0.2.2",
     "swagger-jsdoc": "^3.7.0",
     "utils-decorators": "^2.10.0",
+    "winston": "^3.18.3",
+    "winston-daily-rotate-file": "^5.0.0",
     "zod": "^4.0.14"
   },
   "devDependencies": {

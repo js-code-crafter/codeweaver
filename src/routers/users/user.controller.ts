@@ -11,15 +11,11 @@ import config from "@/config";
 import { users } from "@/db";
 import { User } from "@/entities/user.entity";
 import { MapAsyncCache } from "@/utilities/cache/memory-cache";
+import { Injectable } from "@/utilities/container";
 
 function exceedHandler() {
   const message = "Too much call in allowed window";
   throw new ResponseError(message, 429);
-}
-
-function userNotFoundHandler(e: ResponseError) {
-  const message = "User not found.";
-  throw new ResponseError(message, 404, e?.message);
 }
 
 function invalidInputHandler(e: ResponseError) {
@@ -30,6 +26,7 @@ function invalidInputHandler(e: ResponseError) {
 const usersCache = new MapAsyncCache<UserDto[]>(config.cacheSize);
 const userCache = new MapAsyncCache<UserDto>(config.cacheSize);
 
+@Injectable()
 /**
  * Controller for handling user-related operations
  * @class UserController

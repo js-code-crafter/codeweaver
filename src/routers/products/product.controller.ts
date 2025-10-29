@@ -18,15 +18,11 @@ import config from "@/config";
 import { ResponseError } from "@/utilities/error-handling";
 import { products } from "@/db";
 import { Product, ZodProduct } from "@/entities/product.entity";
+import { Injectable } from "@/utilities/container";
 
 function exceedHandler() {
   const message = "Too much call in allowed window";
   throw new ResponseError(message, 429);
-}
-
-function productNotFoundHandler(e: ResponseError) {
-  const message = "Product not found.";
-  throw new ResponseError(message, 404, e.message);
 }
 
 function invalidInputHandler(e: ResponseError) {
@@ -37,6 +33,7 @@ function invalidInputHandler(e: ResponseError) {
 const productsCache = new MapAsyncCache<ProductDto[]>(config.cacheSize);
 const productCache = new MapAsyncCache<ProductDto>(config.cacheSize);
 
+@Injectable()
 /**
  * Controller for handling product-related operations
  * @class ProductController
@@ -46,7 +43,7 @@ export default class ProductController {
   // constructor(private readonly productService: ProductService) { }
 
   @onError({
-    func: productNotFoundHandler,
+    func: invalidInputHandler,
   })
   /**
    * Validates a string ID and converts it to a number.
@@ -137,9 +134,6 @@ export default class ProductController {
     cache: productCache,
     keyResolver: (id: number) => id.toString(),
     expirationTimeMs: config.memoizeTime,
-  })
-  @onError({
-    func: productNotFoundHandler,
   })
   @rateLimit({
     timeSpanMs: config.rateLimitTimeSpan,
