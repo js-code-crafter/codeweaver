@@ -4,8 +4,9 @@ import {
   rateLimitTimeSpan,
   rateLimitAllowedCalls,
   timeout,
-  portNumber,
+  port,
   cacheSize,
+  http,
 } from "./constants";
 import { SwaggerOptions } from "./swagger-options";
 import { stringToBoolean } from "./utilities/conversion";
@@ -19,6 +20,7 @@ import { stringToBoolean } from "./utilities/conversion";
  */
 interface Config {
   devMode: boolean;
+  http: string;
   port: number;
   swagger: boolean;
   swaggerOptions: SwaggerOptions;
@@ -29,11 +31,10 @@ interface Config {
   cacheSize: number;
 }
 
-const port = Number(process.env.PORT) || portNumber;
-
 let config: Config = {
   devMode: process.env.NODE_ENV !== productionEnvironment,
-  port,
+  http: process.env.HTTP || http,
+  port: Number(process.env.PORT) || port,
   swagger: stringToBoolean(process.env.SWAGGER || "true"),
   swaggerOptions: {
     swaggerDefinition: {
@@ -57,9 +58,10 @@ let config: Config = {
     ], // Path to the API docs
   },
   timeout: Number(process.env.TIMEOUT) || timeout,
-  rateLimitTimeSpan: Number(process.env.RATE_LIMIT) || rateLimitTimeSpan,
+  rateLimitTimeSpan:
+    Number(process.env.RATE_LIMIT_TIME_SPAN) || rateLimitTimeSpan,
   rateLimitAllowedCalls:
-    Number(process.env.RATE_LIMIT) || rateLimitAllowedCalls,
+    Number(process.env.RATE_LIMIT_ALLOWED_CALLS) || rateLimitAllowedCalls,
   memoizeTime: Number(process.env.MEMOIZE_TIME) || memoizeTime,
   cacheSize: Number(process.env.CACHE_SIZE) || cacheSize,
 };

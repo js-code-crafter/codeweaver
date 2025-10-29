@@ -1,6 +1,6 @@
 {
   "name": "codeweaver",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "main": "src/main.ts",
   "bin": {
     "create-codeweaver-app": "./command.js"

@@ -5,6 +5,14 @@ import config from "./config";
 import { ResponseError } from "./utilities/error-handling";
 import { resolve } from "./utilities/container";
 import { WinstonLoggerService } from "./utilities/logger/winston-logger.service";
+import "dotenv/config";
+import {
+  defaultRouter,
+  routerDir,
+  routerExtension,
+  swaggerPath,
+} from "./constants";
+//import cors from "cors";
 
 /**
  * Recursively loads Express routers from directory
@@ -30,17 +38,20 @@ function loadRouters(routerPath: string, basePath: string = "") {
 
     // Only handle router files
     if (
-      !entry.name.endsWith(".router.ts") &&
-      !entry.name.endsWith(".router.js")
+      !entry.name.endsWith(`${routerExtension}.ts`) &&
+      !entry.name.endsWith(`${routerExtension}.js`)
     ) {
       continue;
     }
 
     // Build route path safely
     const routePath = path
-      .join(basePath, entry.name.replace(/\.router\.[tj]s$/, ""))
+      .join(
+        basePath,
+        entry.name.replace(new RegExp(`\\${routerExtension}\\.([tj]s)$`), "")
+      )
       .replace(/\\/g, "/")
-      .replace(/\/?index$/g, "");
+      .replace(new RegExp(`\\/?${defaultRouter}$`), "");
 
     // Optional: skip if the target path would be empty (maps to /)
     const mountPath = "/" + (routePath || "");
@@ -53,11 +64,12 @@ function loadRouters(routerPath: string, basePath: string = "") {
 }
 
 const app = express();
+//app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Automatically import all routers from the /src/routers directory
-const routersPath = path.join(__dirname, "/routers");
+const routersPath = path.join(__dirname, routerDir);
 loadRouters(routersPath);
 
 // Swagger setup
@@ -65,7 +77,7 @@ if (config.swagger) {
   const swaggerJsDoc = require("swagger-jsdoc");
   const swaggerUi = require("swagger-ui-express");
   const swaggerDocs = swaggerJsDoc(config.swaggerOptions);
-  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+  app.use(swaggerPath, swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 }
 
 const logger = resolve(WinstonLoggerService);
@@ -74,21 +86,33 @@ const logger = resolve(WinstonLoggerService);
 app.use(
   (error: ResponseError, req: Request, res: Response, next: NextFunction) => {
     const status = error.status ?? 500;
+    const errorObject = {
+      status,
+      code: error.code,
+      input: error.input,
+      stack: error.stack,
+      cause: error.cause,
+    };
+
     res.status(status).json(error);
     if (status < 500) {
-      logger.warn(error.message, "Invalid request", error.details);
+      logger.warn(error.message, "Invalid request", error.details, errorObject);
     } else {
-      logger.error(error.message, "Server error", error.details);
+      if (status == 401 || status == 403) {
+        logger.fatal(error.message, "Forbidden", error.details, errorObject);
+      } else {
+        logger.error(error.message, "Server error", error.details, errorObject);
+      }
     }
   }
 );
 
 // Start the server
 app.listen(config.port, () => {
-  console.log(`Server is running on http://localhost:${config.port}`);
+  console.log(`Server is running on ${config.http}:${config.port}`);
   if (config.devMode) {
     console.log(
-      `Swagger UI is available at http://localhost:${config.port}/api-docs`
+      `Swagger UI is available at ${config.http}:${config.port}${swaggerPath}`
     );
   }
 });

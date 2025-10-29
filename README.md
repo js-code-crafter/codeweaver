@@ -10,10 +10,14 @@
 - **Express**: A lightweight web framework for building server-side applications in Node.js.
 - **TypeScript**: Adds strong typing for enhanced development experience and reduced runtime errors.
 - **Modular Router Structure**: Automates importing and mounting routers, ensuring a clean separation of endpoints and logic for easier scalability.
+- **Dependency resolver**: A simple dependency resolver that uses a lightweight container to manage and inject dependencies at runtime.
 - **Swagger Integration**: Automatically generates interactive API documentation, facilitating easier understanding of available endpoints for developers and consumers.
 - **Async Handlers**: Utilizes async/await syntax for cleaner, more maintainable asynchronous code without callback nesting.
 - **Zod**: Implements schema validation for input data.
-- **utils-decorators**: A collection of middleware utilities (throttling, caching, and error handling) designed to strengthen application resilience.
+- **Utils-decorators**: A collection of middleware utilities utils-decorators (throttling, caching, and error handling) designed to strengthen application resilience.
+- **Logger**: A Winston-based logger (with LogForm) that provides scalable, leveled logging, structured JSON output, and pluggable transports (console and file)
+
+Here's a revised Installation section that explicitly supports pnpm in addition to npm. I kept the formatting and steps intact, adding clear pnpm equivalents.
 
 ## Installation
 
@@ -29,9 +33,19 @@ To get started with the project, follow these steps:
 
 2. **Install dependencies**:
 
-   ```bash
-   npm install
-   ```
+   Choose your package manager and install:
+
+   - Using npm:
+
+     ```bash
+     npm install
+     ```
+
+   - Using pnpm:
+
+     ```bash
+     pnpm install
+     ```
 
 3. **Run the application**:
 
@@ -39,14 +53,29 @@ To get started with the project, follow these steps:
    npm start
    ```
 
+   Or, if you used pnpm:
+
+   ```bash
+   pnpm start
+   ```
+
 4. **Visit the Swagger UI**: Open your browser and go to `http://localhost:3000/api-docs` to view the automatically generated API documentation.
 
 5. **Build**: Compile the TypeScript files for the production environment:
 
-   ```bash
-   npm run build
-   npm run serve
-   ```
+   - Using npm:
+
+     ```bash
+     npm run build
+     npm run serve
+     ```
+
+   - Using pnpm:
+
+     ```bash
+     pnpm run build
+     pnpm run serve
+     ```
 
 ## Sample Project Structure
 
@@ -89,9 +118,10 @@ Example of a basic router:
 import { Router, Request, Response } from "express";
 import asyncHandler from "express-async-handler";
 import UserController from "./user.controller";
+import { resolve } from "@/utilities/container";
 
 const router = Router();
-const userController = new UserController();
+const userController = resolve(UserController);
 
 /**
  * @swagger
@@ -210,15 +240,11 @@ import config from "@/config";
 import { users } from "@/db";
 import { User } from "@/entities/user.entity";
 import { MapAsyncCache } from "@/utilities/cache/memory-cache";
+import { Injectable } from "@/utilities/container";
 
 function exceedHandler() {
   const message = "Too much call in allowed window";
   throw new ResponseError(message, 429);
-}
-
-function userNotFoundHandler(e: ResponseError) {
-  const message = "User not found.";
-  throw new ResponseError(message, 404, e?.message);
 }
 
 function invalidInputHandler(e: ResponseError) {
@@ -229,6 +255,7 @@ function invalidInputHandler(e: ResponseError) {
 const usersCache = new MapAsyncCache<UserDto[]>(config.cacheSize);
 const userCache = new MapAsyncCache<UserDto>(config.cacheSize);
 
+@Injectable()
 /**
  * Controller for handling user-related operations
  * @class UserController
