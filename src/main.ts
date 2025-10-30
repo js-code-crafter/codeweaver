@@ -80,11 +80,10 @@ if (config.swagger) {
   app.use(swaggerPath, swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 }
 
-const logger = resolve(WinstonLoggerService);
-
 // General error handler
 app.use(
   (error: ResponseError, req: Request, res: Response, next: NextFunction) => {
+    const logger = resolve(WinstonLoggerService);
     const status = error.status ?? 500;
     const errorObject = {
       status,

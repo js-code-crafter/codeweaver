@@ -1,4 +1,4 @@
-import { z, ZodRawShape } from "zod";
+import { z } from "zod";
 import { ResponseError } from "./error-handling";
 
 /**
