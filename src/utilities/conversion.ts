@@ -109,50 +109,57 @@ export function stringToNumber(input: string): number {
  * - Validates fields with the schema; on failure, throws with a descriptive message.
  * - Returns an object typed as T2 (inferred from the schema).
  *
- * @param obj - Source object of type T1
+ * @param data - Source object of type T1
  * @param schema - Zod schema describing the target type T2
  * @returns T2 inferred from the provided schema
  */
-export function convert<T1 extends object, T2 extends object>(
-  obj: T1,
-  schema: z.ZodObject<any>
-): T2 {
-  // 1) Derive the runtime keys from the schema's shape
+export async function convert<T1 extends object, T2 extends object>(
+  data: T1,
+  schema: z.ZodObject<any>,
+  ignoreValidation: boolean = false
+): Promise<T2> {
+  // Derive the runtime keys from the schema's shape
   const shape = (schema as any)._def?.shape as ZodRawShape | undefined;
   if (!shape) {
-    throw new ResponseError(
-      "convertStrictlyFromSchema: provided schema has no shape.",
-      500
-    );
+    throw new ResponseError("Provided schema has no shape.", 500);
   }
 
   const keysSchema = Object.keys(shape) as Array<keyof any>;
 
-  // 2) Build a plain object to pass through Zod for validation
+  // Build a plain object to pass through Zod for validation
   // Include only keys that exist on the schema (ignore extras in obj)
   const candidate: any = {};
-  for (const k of keysSchema) {
-    if ((obj as any).hasOwnProperty(k)) {
-      candidate[k] = (obj as any)[k];
+
+  // Iterate schema keys
+  await Promise.all(
+    keysSchema.map(async (key) => {
+      if ((data as any).hasOwnProperty(key)) {
+        candidate[key] = (data as any)[key];
+      }
+    })
+  );
+
+  // Validate against the schema
+  if (ignoreValidation) {
+    const result = await schema.safeParseAsync(candidate);
+    if (result.success == false) {
+      // Modern, non-format error reporting
+      const issues = result.error.issues.map((i) => ({
+        path: i.path, // where the issue occurred
+        message: i.message, // human-friendly message
+        code: i.code, // e.g., "too_small", "invalid_type"
+      }));
+
+      // You can log issues or throw a structured error
+      throw new ResponseError(
+        `Validation failed: ${JSON.stringify(issues)}`,
+        500
+      );
     }
+
+    // Return the validated data typed as T2
+    return result.data as T2;
   }
 
-  // 3) Validate against the schema
-  const result = schema.safeParse(candidate);
-  if (!result.success) {
-    // Modern, non-format error reporting
-    const issues = result.error.issues.map((i) => ({
-      path: i.path, // where the issue occurred
-      message: i.message, // human-friendly message
-      code: i.code, // e.g., "too_small", "invalid_type"
-    }));
-    // You can log issues or throw a structured error
-    throw new ResponseError(
-      `convertStrictlyFromSchema: validation failed: ${JSON.stringify(issues)}`,
-      500
-    );
-  }
-
-  // 4) Return the validated data typed as T2
-  return result.data as T2;
+  return candidate as T2;
 }

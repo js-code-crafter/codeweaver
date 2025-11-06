@@ -1,37 +1,17 @@
 {
-  "name": "codeweaver",
-  "version": "2.3.1",
+  "name": "my-app",
+  "version": "1.1.0",
   "main": "src/main.ts",
-  "bin": {
-    "create-codeweaver-app": "./command.js"
-  },
   "scripts": {
     "start": "nodemon -r tsconfig-paths/register src/main.ts",
     "dev": "nodemon -r tsconfig-paths/register src/main.ts",
     "build": "tsc && tsc-alias && copyfiles -u 1 \"src/**/*.{json,env,sqlite,db,sql,yaml,yml,xml,txt,md}\" dist",
     "serve": "cross-env TSCONFIG_PATH=tsconfig.paths.json node -r tsconfig-paths/register dist/main.js"
   },
-  "keywords": [
-    "codeweaver",
-    "node framework",
-    "js framework",
-    "javascript",
-    "typescript",
-    "code",
-    "weaver",
-    "framework",
-    "boilerplate",
-    "bootstrap",
-    "lightweight",
-    "nested routers",
-    "decorator",
-    "swagger",
-    "zod",
-    "utils-decorators"
-  ],
-  "author": "js-code-crafter",
-  "license": "MIT",
-  "description": "A lightweight framework built on top of Express and TypeScript",
+  "keywords": "",
+  "author": "",
+  "license": "",
+  "description": "",
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
@@ -40,6 +20,7 @@
     "express-winston": "^4.2.0",
     "ioredis": "^5.8.2",
     "logform": "^2.7.0",
+    "prisma": "^6.18.0",
     "reflect-metadata": "^0.2.2",
     "swagger-jsdoc": "^3.7.0",
     "utils-decorators": "^2.10.0",

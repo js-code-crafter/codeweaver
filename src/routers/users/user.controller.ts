@@ -1,15 +1,10 @@
-import {
-  ZodUserCreationDto,
-  UserCreationDto,
-  UserDto,
-  ZodUserDto,
-} from "./dto/user.dto";
+import { UserCreationDto, UserDto, ZodUserDto } from "./dto/user.dto";
 import { memoizeAsync, onError, rateLimit, timeout } from "utils-decorators";
 import { ResponseError } from "@/utilities/error-handling";
 import { convert, stringToInteger } from "@/utilities/conversion";
 import config from "@/config";
 import { users } from "@/db";
-import { User } from "@/entities/user.entity";
+import { User, ZodUser } from "@/entities/user.entity";
 import { MapAsyncCache } from "@/utilities/cache/memory-cache";
 import { Injectable } from "@/utilities/container";
 
@@ -58,8 +53,7 @@ export default class UserController {
    * @returns {User} A fully formed User object ready for persistence.
    */
   public async validateUserCreationDto(user: UserCreationDto): Promise<User> {
-    const newUser = await ZodUserCreationDto.parseAsync(user);
-    return { ...newUser, id: users.length + 1 };
+    return await convert(user, ZodUser);
   }
 
   @rateLimit({
@@ -76,7 +70,6 @@ export default class UserController {
    */
   public async create(user: User): Promise<void> {
     users.push(user);
-    await userCache.set(user.id.toString(), user as User);
     await usersCache.delete("key");
   }
 
@@ -97,7 +90,9 @@ export default class UserController {
    * @throws {ResponseError} 500 - When rate limit exceeded
    */
   public async getAll(): Promise<UserDto[]> {
-    return users as UserDto[];
+    return await Promise.all(
+      users.map(async (user) => await convert(user, ZodUserDto))
+    );
   }
 
   @memoizeAsync({
@@ -122,6 +117,6 @@ export default class UserController {
     if (user == null) {
       throw new ResponseError("Product not found");
     }
-    return convert(user!, ZodUserDto);
+    return convert(user, ZodUserDto);
   }
 }

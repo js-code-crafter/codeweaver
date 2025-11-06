@@ -1,9 +1,5 @@
 import { memoizeAsync, onError, rateLimit, timeout } from "utils-decorators";
-import {
-  OrderDto,
-  OrderCreationDto,
-  ZodOrderCreationDto,
-} from "./dto/order.dto";
+import { OrderDto, OrderCreationDto, ZodOrderDto } from "./dto/order.dto";
 import { ResponseError } from "@/utilities/error-handling";
 import { convert, stringToInteger } from "@/utilities/conversion";
 import config from "@/config";
@@ -59,13 +55,14 @@ export default class OrderController {
   public async validateOrderCreationDto(
     order: OrderCreationDto
   ): Promise<Order> {
-    const newOrder = await ZodOrderCreationDto.parseAsync(order);
-    return {
-      ...newOrder,
+    const newOrder: Order = {
+      ...order,
       id: orders.length + 1,
       status: "Processing",
       createdAt: new Date(),
     };
+
+    return convert(newOrder, ZodOrder);
   }
 
   @rateLimit({
@@ -82,7 +79,6 @@ export default class OrderController {
    */
   public async create(order: Order): Promise<void> {
     orders.push(order);
-    await orderCache.set(order.id.toString(), order as OrderDto);
     await ordersCache.delete("key");
   }
 
@@ -102,7 +98,9 @@ export default class OrderController {
    * @returns List of orders
    */
   public async getAll(): Promise<OrderDto[]> {
-    return orders as OrderDto[];
+    return await Promise.all(
+      orders.map(async (order) => await convert(order, ZodOrderDto))
+    );
   }
 
   @memoizeAsync({
@@ -125,7 +123,7 @@ export default class OrderController {
     if (order == null) {
       throw new ResponseError("Order not found");
     }
-    return convert(order!, ZodOrder);
+    return await convert(order, ZodOrder);
   }
 
   @rateLimit({
@@ -151,7 +149,7 @@ export default class OrderController {
     order.status = "Canceled";
     order.deliveredAt = new Date();
 
-    await orderCache.set(id.toString(), order);
+    await orderCache.delete(id.toString());
     await ordersCache.delete("key");
     return order;
   }
@@ -179,7 +177,7 @@ export default class OrderController {
     order.status = "Delivered";
     order.deliveredAt = new Date();
 
-    await orderCache.set(id.toString(), order);
+    await orderCache.delete(id.toString());
     await ordersCache.delete("key");
     return order;
   }

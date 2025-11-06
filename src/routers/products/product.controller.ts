@@ -9,8 +9,7 @@ import {
   ProductCreationDto,
   ProductDto,
   ProductUpdateDto,
-  ZodProductCreationDto,
-  ZodProductUpdateDto,
+  ZodProductDto,
 } from "./dto/product.dto";
 import { MapAsyncCache } from "@/utilities/cache/memory-cache";
 import { convert, stringToInteger } from "@/utilities/conversion";
@@ -19,6 +18,7 @@ import { ResponseError } from "@/utilities/error-handling";
 import { products } from "@/db";
 import { Product, ZodProduct } from "@/entities/product.entity";
 import { Injectable } from "@/utilities/container";
+import assign from "@/utilities/assignment";
 
 function exceedHandler() {
   const message = "Too much call in allowed window";
@@ -67,8 +67,7 @@ export default class ProductController {
   public async validateProductCreationDto(
     product: ProductCreationDto
   ): Promise<Product> {
-    const newProduct = await ZodProductCreationDto.parseAsync(product);
-    return { ...newProduct, id: products.length + 1 };
+    return await convert({ ...product, id: products.length + 1 }, ZodProduct);
   }
 
   @onError({
@@ -81,11 +80,9 @@ export default class ProductController {
    * @returns {Product} A fully formed Product object ready for persistence.
    */
   public async validateProductUpdateDto(
-    product: ProductCreationDto
+    product: ProductUpdateDto
   ): Promise<Product> {
-    const productDto = await ZodProductUpdateDto.parseAsync(product);
-    let updatedProduct: Product = convert(productDto, ZodProduct);
-    return { ...updatedProduct, id: products.length + 1 };
+    return await convert(product, ZodProduct);
   }
 
   @rateLimit({
@@ -101,13 +98,7 @@ export default class ProductController {
    * @throws {ResponseError} 400 - Invalid input data
    */
   public async create(product: Product): Promise<void> {
-    const newProduct: Product = {
-      ...product,
-      id: products.length + 1,
-    };
-
-    products.push(newProduct);
-    await productCache.set(newProduct.id.toString(), newProduct as ProductDto);
+    products.push(product);
     await productsCache.delete("key");
   }
 
@@ -127,7 +118,9 @@ export default class ProductController {
    * @returns List of products with summarized descriptions
    */
   public async getAll(): Promise<ProductDto[]> {
-    return products as ProductDto[];
+    return await Promise.all(
+      products.map(async (product) => await convert(product, ZodProductDto))
+    );
   }
 
   @memoizeAsync({
@@ -150,7 +143,7 @@ export default class ProductController {
     if (product == null) {
       throw new ResponseError("Product not found");
     }
-    return convert(product!, ZodProduct);
+    return await convert(product, ZodProduct);
   }
 
   @rateLimit({
@@ -166,20 +159,15 @@ export default class ProductController {
    * @throws {ResponseError} 404 - Product not found
    * @throws {ResponseError} 400 - Invalid ID format or update data
    */
-  public async update(
-    id: number,
-    updateData: ProductUpdateDto
-  ): Promise<ProductDto> {
-    const product = await this.get(id);
+  public async update(updateData: Product): Promise<void> {
+    const product = await this.get(updateData.id);
     if (product != null) {
-      Object.assign(product, updateData);
-      await productCache.set(id.toString(), product);
+      assign(updateData, product, ZodProduct);
+      await productCache.delete(updateData.id.toString());
       await productsCache.delete("key");
     } else {
       throw new ResponseError("Product dose not exist.", 404);
     }
-
-    return product;
   }
 
   @rateLimit({
@@ -194,13 +182,13 @@ export default class ProductController {
    * @throws {ResponseError} 404 - Product not found
    * @throws {ResponseError} 400 - Invalid ID format
    */
-  public async delete(id: number): Promise<ProductDto> {
+  public async delete(id: number): Promise<void> {
     const index = products.findIndex((product) => product.id === id);
     if (index == -1) {
       throw new ResponseError("Product dose not exist.", 404);
     }
     await productCache.delete(id.toString());
     await productsCache.delete("key");
-    return products.splice(index, 1)[0];
+    products.splice(index, 1)[0];
   }
 }

@@ -1,5 +1,10 @@
 import { ZodProduct } from "@/entities/product.entity";
-import z from "zod";
+
+/**
+ * DTO for a Product.
+ * Derived from the full Product schema.
+ */
+export const ZodProductDto = ZodProduct;
 
 /**
  * DTO for creating a Product.
@@ -11,7 +16,7 @@ export const ZodProductCreationDto = ZodProduct.omit({ id: true });
  * DTO for updating a Product.
  * All fields are optional to support partial updates (PATCH semantics).
  */
-export const ZodProductUpdateDto = ZodProductCreationDto.partial();
+export const ZodProductUpdateDto = ZodProductDto.partial();
 
 /**
  * Product categories supported by the system.
@@ -44,7 +49,7 @@ export type ProductCreationDto = {
   stock: number;
 
   /** Optional product description. */
-  description?: string | undefined;
+  description?: string;
 };
 
 /**
@@ -52,20 +57,23 @@ export type ProductCreationDto = {
  * All fields are optional to support partial updates.
  */
 export type ProductUpdateDto = {
+  /** Product ID */
+  id: number;
+
   /** Optional product name. */
-  name?: string | undefined;
+  name?: string;
 
   /** Optional product price. */
-  price?: number | undefined;
+  price?: number;
 
   /** Optional product description. */
-  description?: string | undefined;
+  description?: string;
 
   /** Optional product category. Must be one of the predefined categories if provided. */
-  category?: ProductCategory | undefined;
+  category?: ProductCategory;
 
   /** Optional stock count in inventory. */
-  stock?: number | undefined;
+  stock?: number;
 };
 
 /**
@@ -88,5 +96,5 @@ export type ProductDto = {
   stock: number;
 
   /** Optional product description. */
-  description?: string | undefined;
+  description?: string;
 };
