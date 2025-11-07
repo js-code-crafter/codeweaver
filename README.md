@@ -31,51 +31,20 @@ To get started with the project, follow these steps:
    cd my-app
    ```
 
-2. **Install dependencies**:
-
-   Choose your package manager and install:
-
-   - Using npm:
-
-     ```bash
-     npm install
-     ```
-
-   - Using pnpm:
-
-     ```bash
-     pnpm install
-     ```
-
-3. **Run the application**:
-
-   ```bash
-   npm start
-   ```
-
-   Or, if you used pnpm:
+2. **Run the application**:
 
    ```bash
    pnpm start
    ```
 
-4. **Visit the Swagger UI**: Open your browser and go to `http://localhost:3000/api-docs` to view the automatically generated API documentation.
+3. **Visit the Swagger UI**: Open your browser and go to `http://localhost:3000/api-docs` to view the automatically generated API documentation.
 
-5. **Build**: Compile the TypeScript files for the production environment:
+4. **Build**: Compile the TypeScript files for the production environment:
 
-   - Using npm:
-
-     ```bash
-     npm run build
-     npm run serve
-     ```
-
-   - Using pnpm:
-
-     ```bash
-     pnpm run build
-     pnpm run serve
-     ```
+   ```bash
+   pnpm run build
+   pnpm run serve
+   ```
 
 ## Sample Project Structure
 

@@ -1,37 +1,41 @@
 #!/usr/bin/env node
 
 const fs = require("fs");
-const { exec } = require("child_process");
 const path = require("path");
-const { version } = require("os");
-const { object } = require("zod");
+const { exec: _exec } = require("child_process");
+const { promisify } = require("util");
 
-// Get the project name from command-line arguments or use a default name
-const projectName = process.argv[2] || "my-app";
+const exec = promisify(_exec);
+const readFile = promisify(fs.readFile);
+const writeFile = promisify(fs.writeFile);
+const access = promisify(fs.access);
 
-// Set the URL of the GitHub repository
-const repoUrl = "https://github.com/js-code-crafter/codeweaver.git";
+(async () => {
+  try {
+    // Get the project name from command-line arguments or use a default name
+    const projectName = process.argv[2] || "my-app";
 
-// Clone the repository into the specified project name
-exec(`git clone ${repoUrl} ${projectName}`, (error) => {
-  if (error) {
-    console.error(`Error cloning repository: ${error.message}`);
-    return;
-  }
+    // Set the URL of the GitHub repository
+    const repoUrl = "https://github.com/js-code-crafter/codeweaver.git";
 
-  // Path to the cloned package.json file
-  const packageJsonPath = path.join(projectName, "package.json");
+    // Clone the repository into the specified project name
+    await exec(`git clone ${repoUrl} ${projectName}`);
+    console.log(`Cloned repository into ${projectName}`);
 
-  // Update the package.json file
-  fs.readFile(packageJsonPath, "utf8", (readError, data) => {
-    if (readError) {
-      console.error(`Error reading package.json: ${readError.message}`);
-      return;
-    }
+    // Path to the cloned package.json file
+    const packageJsonPath = path.join(projectName, "package.json");
 
-    // Parse the package.json content and update the name
-    const { bin, ...packageJson } = JSON.parse(data);
+    // Ensure package.json exists before trying to read
+    await access(packageJsonPath);
 
+    // Read and parse package.json
+    const data = await readFile(packageJsonPath, "utf8");
+    const parsed = JSON.parse(data);
+
+    // Remove the bin field if it exists (as in your original logic)
+    const { bin, ...packageJson } = parsed;
+
+    // Update fields as requested
     Object.assign(packageJson, {
       name: projectName,
       version: "1.0.0",
@@ -42,35 +46,37 @@ exec(`git clone ${repoUrl} ${projectName}`, (error) => {
     });
 
     // Write the updated package.json back to the file
-    fs.writeFile(
-      packageJsonPath,
-      JSON.stringify(packageJson, null, 2),
-      (writeError) => {
-        if (writeError) {
-          console.error(`Error writing package.json: ${writeError.message}`);
-          return;
-        }
+    await writeFile(packageJsonPath, JSON.stringify(packageJson, null, 2));
 
-        // Remove the command.js file
-        exec(`rm -f ${path.join(projectName, "command.js")}`, (rmError) => {
-          if (rmError) {
-            console.error(`Error removing command.js file: ${rmError.message}`);
-            return;
-          }
-
-          // Remove the .git folder
-          exec(`rm -rf ${path.join(projectName, ".git")}`, (rm2Error) => {
-            if (rm2Error) {
-              console.error(`Error removing .git folder: ${rm2Error.message}`);
-              return;
-            }
-
-            console.log(
-              `Successfully cloned codeweaver into ${path.resolve(projectName)}`
-            );
-          });
-        });
+    // Remove the command.js file if it exists
+    const commandJsPath = path.join(projectName, "command.js");
+    try {
+      await exec(`rm -f ${commandJsPath}`);
+    } catch (err) {
+      // If removal fails because the file doesn't exist, ignore
+      // Otherwise, log the error
+      if (err && err.code !== 1) {
+        console.error(`Error removing command.js file: ${err.message}`);
+        // Continue anyway
       }
+    }
+
+    // Remove the .git folder
+    try {
+      await exec(`rm -rf ${path.join(projectName, ".git")}`);
+    } catch (err) {
+      console.error(`Error removing .git folder: ${err.message}`);
+      // continue anyway
+    }
+
+    // Run npm install inside the project directory
+    await exec(`cd ${projectName} && pnpm install`);
+    console.log(
+      `Successfully prepared ${path.resolve(
+        projectName
+      )} and installed dependencies.`
     );
-  });
-});
+  } catch (error) {
+    console.error(`Error: ${error.message}`);
+  }
+})();
