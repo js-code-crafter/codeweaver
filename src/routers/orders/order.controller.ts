@@ -7,6 +7,7 @@ import { orders } from "@/db";
 import { Order, ZodOrder } from "@/entities/order.entity";
 import { MapAsyncCache } from "@/utilities/cache/memory-cache";
 import { Injectable } from "@/utilities/container";
+import { parallelMap } from "@/utilities/parallel/parallel";
 
 function exceedHandler() {
   const message = "Too much call in allowed window";
@@ -98,8 +99,9 @@ export default class OrderController {
    * @returns List of orders
    */
   public async getAll(): Promise<OrderDto[]> {
-    return await Promise.all(
-      orders.map(async (order) => await convert(order, ZodOrderDto))
+    return await parallelMap(
+      orders,
+      async (order) => await convert(order, ZodOrderDto)
     );
   }
 
@@ -138,7 +140,7 @@ export default class OrderController {
    * @throws {ResponseError} 404 - Order not found
    * @throws {ResponseError} 400 - Invalid ID format or invalid status for cancellation
    */
-  public async cancel(id: number): Promise<OrderDto> {
+  public async cancel(id: number): Promise<void> {
     let order = await this.get(id);
     if (order.status != "Processing") {
       throw new ResponseError(
@@ -151,7 +153,6 @@ export default class OrderController {
 
     await orderCache.delete(id.toString());
     await ordersCache.delete("key");
-    return order;
   }
 
   @rateLimit({
@@ -166,7 +167,7 @@ export default class OrderController {
    * @throws {ResponseError} 404 - Order not found
    * @throws {ResponseError} 400 - Invalid ID format or invalid status for delivery
    */
-  public async deliver(id: number): Promise<OrderDto> {
+  public async deliver(id: number): Promise<void> {
     let order = await this.get(id);
     if (order.status != "Processing") {
       throw new ResponseError(
@@ -179,6 +180,5 @@ export default class OrderController {
 
     await orderCache.delete(id.toString());
     await ordersCache.delete("key");
-    return order;
   }
 }

@@ -1,10 +1,4 @@
-import {
-  memoizeAsync,
-  onError,
-  rateLimit,
-  timeout,
-  before,
-} from "utils-decorators";
+import { memoizeAsync, onError, rateLimit, timeout } from "utils-decorators";
 import {
   ProductCreationDto,
   ProductDto,
@@ -19,6 +13,7 @@ import { products } from "@/db";
 import { Product, ZodProduct } from "@/entities/product.entity";
 import { Injectable } from "@/utilities/container";
 import assign from "@/utilities/assignment";
+import { parallelMap } from "@/utilities/parallel/parallel";
 
 function exceedHandler() {
   const message = "Too much call in allowed window";
@@ -118,8 +113,9 @@ export default class ProductController {
    * @returns List of products with summarized descriptions
    */
   public async getAll(): Promise<ProductDto[]> {
-    return await Promise.all(
-      products.map(async (product) => await convert(product, ZodProductDto))
+    return await parallelMap(
+      products,
+      async (product) => await convert(product, ZodProductDto)
     );
   }
 
@@ -159,10 +155,13 @@ export default class ProductController {
    * @throws {ResponseError} 404 - Product not found
    * @throws {ResponseError} 400 - Invalid ID format or update data
    */
-  public async update(updateData: Product): Promise<void> {
-    const product = await this.get(updateData.id);
+  public async update(id: number, updateData: Product): Promise<void> {
+    if (id != updateData.id) {
+      throw new ResponseError("Product ID is immutable.", 400);
+    }
+    const product = await this.get(id);
     if (product != null) {
-      assign(updateData, product, ZodProduct);
+      await assign(updateData, product, ZodProduct);
       await productCache.delete(updateData.id.toString());
       await productsCache.delete("key");
     } else {

@@ -127,8 +127,8 @@ router.patch(
   "/:id/cancel",
   asyncHandler(async (req: Request, res: Response) => {
     const id = await orderController.validateId(req.params.id);
-    const order = await orderController.cancel(id);
-    res.json(order);
+    await orderController.cancel(id);
+    res.status(200).send();
   })
 );
 
@@ -154,8 +154,8 @@ router.patch(
   "/:id/deliver",
   asyncHandler(async (req: Request, res: Response) => {
     const id = await orderController.validateId(req.params.id);
-    const order = await orderController.deliver(id);
-    res.json(order);
+    await orderController.deliver(id);
+    res.status(200).send();
   })
 );
 

@@ -7,6 +7,7 @@ import { users } from "@/db";
 import { User, ZodUser } from "@/entities/user.entity";
 import { MapAsyncCache } from "@/utilities/cache/memory-cache";
 import { Injectable } from "@/utilities/container";
+import { parallelMap } from "@/utilities/parallel/parallel";
 
 function exceedHandler() {
   const message = "Too much call in allowed window";
@@ -90,8 +91,9 @@ export default class UserController {
    * @throws {ResponseError} 500 - When rate limit exceeded
    */
   public async getAll(): Promise<UserDto[]> {
-    return await Promise.all(
-      users.map(async (user) => await convert(user, ZodUserDto))
+    return await parallelMap(
+      users,
+      async (user) => await convert(user, ZodUserDto)
     );
   }
 

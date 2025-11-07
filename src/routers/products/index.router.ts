@@ -169,8 +169,9 @@ router.get(
 router.put(
   "/:id",
   asyncHandler(async (req: Request, res: Response) => {
+    const id = await productController.validateId(req.params.id);
     const product = await productController.validateProductUpdateDto(req.body);
-    await productController.update(product);
+    await productController.update(id, product);
     res.status(200).send();
   })
 );
@@ -199,7 +200,7 @@ router.delete(
   "/:id",
   asyncHandler(async (req: Request, res: Response) => {
     const id = await productController.validateId(req.params.id);
-    const product = await productController.delete(id);
+    await productController.delete(id);
   })
 );
 
