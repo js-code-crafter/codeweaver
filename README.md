@@ -26,8 +26,8 @@ To get started with the project, follow these steps:
 1. **Clone the repository**:
 
    ```bash
-   npm install -g codeweaver
-   npx create-codeweaver-app my-app
+   npm i -g codeweaver
+   npx codeweaver my-app
    cd my-app
    ```
 
@@ -36,13 +36,13 @@ To get started with the project, follow these steps:
    Using pnpm:
 
    ```bash
-   pnpm install
+   pnpm i
    ```
 
    Using npm:
 
    ```bash
-   npm install
+   npm i
    ```
 
 3. **Run the application**:
