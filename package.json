@@ -1,6 +1,6 @@
 {
-  "name": "my-app",
-  "version": "1.1.0",
+  "name": "codeweaver",
+  "version": "3.0.1",
   "main": "src/main.ts",
   "scripts": {
     "start": "nodemon -r tsconfig-paths/register src/main.ts",
@@ -8,10 +8,20 @@
     "build": "tsc && tsc-alias && copyfiles -u 1 \"src/**/*.{json,env,sqlite,db,sql,yaml,yml,xml,txt,md}\" dist",
     "serve": "cross-env TSCONFIG_PATH=tsconfig.paths.json node -r tsconfig-paths/register dist/main.js"
   },
-  "keywords": "",
-  "author": "",
-  "license": "",
-  "description": "",
+  "keywords": [
+    "framework",
+    "lightweight",
+    "node",
+    "Express",
+    "boilerplate",
+    "utility",
+    "decorator",
+    "controller",
+    "microframework"
+  ],
+  "author": "@js-code-crafter - Ehsan Afzali",
+  "license": "MIT",
+  "description": "An unopinionated microframework built with Express, TypeScript, Zod, Swagger",
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
@@ -20,7 +30,6 @@
     "express-winston": "^4.2.0",
     "ioredis": "^5.8.2",
     "logform": "^2.7.0",
-    "prisma": "^6.18.0",
     "reflect-metadata": "^0.2.2",
     "swagger-jsdoc": "^3.7.0",
     "utils-decorators": "^2.10.0",

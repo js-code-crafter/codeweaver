@@ -68,14 +68,6 @@ const access = promisify(fs.access);
       console.error(`Error removing .git folder: ${err.message}`);
       // continue anyway
     }
-
-    // Run npm install inside the project directory
-    await exec(`cd ${projectName} && pnpm install`);
-    console.log(
-      `Successfully prepared ${path.resolve(
-        projectName
-      )} and installed dependencies.`
-    );
   } catch (error) {
     console.error(`Error: ${error.message}`);
   }
