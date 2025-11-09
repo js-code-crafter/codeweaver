@@ -1,5 +1,4 @@
 import { z, ZodRawShape } from "zod";
-import { ResponseError } from "./error-handling";
 import { parallelMap } from "./parallel/parallel";
 
 /**
@@ -42,10 +41,7 @@ export function stringToInteger(input: string): number {
   try {
     return parseIntegerStrict(input);
   } catch {
-    throw new ResponseError(
-      "The input parameter must be a valid integer.",
-      400
-    );
+    throw new Error("The input parameter must be a valid integer.");
   }
 }
 
@@ -72,9 +68,8 @@ export function stringToBoolean(input: string): boolean {
     return false;
   }
 
-  throw new ResponseError(
-    "The input parameter must be a boolean (e.g., true/false, 1/0).",
-    400
+  throw new Error(
+    "The input parameter must be a boolean (e.g., true/false, 1/0)."
   );
 }
 
@@ -99,7 +94,7 @@ export function stringToNumber(input: string): number {
 
     return n;
   } catch {
-    throw new ResponseError("The input parameter must be a valid number.", 400);
+    throw new Error("The input parameter must be a valid number.");
   }
 }
 
@@ -122,7 +117,7 @@ export async function convert<T1 extends object, T2 extends object>(
   // Derive the runtime keys from the schema's shape
   const shape = (schema as any)._def?.shape as ZodRawShape | undefined;
   if (!shape) {
-    throw new ResponseError("Provided schema has no shape.", 500);
+    throw new Error("Provided schema has no shape.");
   }
 
   const keysSchema = Object.keys(shape) as Array<keyof any>;
@@ -150,10 +145,7 @@ export async function convert<T1 extends object, T2 extends object>(
       }));
 
       // You can log issues or throw a structured error
-      throw new ResponseError(
-        `Validation failed: ${JSON.stringify(issues)}`,
-        500
-      );
+      throw new Error(`Validation failed: ${JSON.stringify(issues)}`);
     }
 
     // Return the validated data typed as T2

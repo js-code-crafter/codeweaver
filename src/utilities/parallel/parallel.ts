@@ -1,5 +1,3 @@
-import { ResponseError } from "../error-handling";
-import path from "path";
 import { WorkerPool } from "./worker-pool";
 
 /**
@@ -77,11 +75,11 @@ export async function parallelMapWithConcurrencyLevel<T, U>(
   concurrencyLevel: number = Infinity
 ): Promise<U[]> {
   if (!Array.isArray(items)) {
-    throw new ResponseError("Items must be an array", 400);
+    throw new TypeError("Items must be an array");
   }
 
   if (concurrencyLevel <= 0) {
-    throw new ResponseError("Concurrency must be greater than 0", 500);
+    throw new Error("Concurrency must be greater than 0");
   }
 
   // If concurrency is not finite, use the simple Promise.all approach

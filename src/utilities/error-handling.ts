@@ -45,7 +45,9 @@ export class ResponseError extends Error {
     super(message);
 
     // If a custom stack is provided, you might assign it; otherwise, the runtime stack will be used.
-    if (stack) this.stack = stack;
+    if (stack) {
+      this.stack = stack;
+    }
   }
 }
 

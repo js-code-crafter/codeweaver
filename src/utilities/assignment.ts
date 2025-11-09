@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { ResponseError } from "./error-handling";
 import { parallelMap } from "./parallel/parallel";
 
 /**
@@ -36,10 +35,7 @@ export default async function assign<T1 extends object, T2 extends object>(
       const issue = parseResult.error.issues?.[0];
       const path = issue?.path?.length ? issue.path.join(".") : "value";
       const message = issue?.message ?? "Schema validation failed";
-      throw new ResponseError(
-        `Validation failed for "${path}": ${message}`,
-        500
-      );
+      throw new Error(`Validation failed for "${path}": ${message}`);
     }
   }
 

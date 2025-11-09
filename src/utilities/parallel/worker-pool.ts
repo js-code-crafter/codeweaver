@@ -1,6 +1,5 @@
 import { Worker } from "worker_threads";
 import os from "os";
-import { ResponseError } from "../error-handling";
 
 export type Task<T> = { id: number; payload: T };
 export type Result<R> = { id: number; result?: R; error?: string };
@@ -28,9 +27,7 @@ export class WorkerPool<T, R> {
         if (code !== 0) {
           // Notify all pending promises about the exit
           for (const [, p] of this.pending) {
-            p.reject(
-              new ResponseError(`Worker ${i} exited with code ${code}`, 500)
-            );
+            p.reject(new Error(`Worker ${i} exited with code ${code}`));
           }
           this.pending.clear();
         }
@@ -56,10 +53,7 @@ export class WorkerPool<T, R> {
     // This simple version broadcasts the error to all pending tasks for safety.
     for (const [id, entry] of this.pending) {
       entry.reject(
-        new ResponseError(
-          `Worker ${workerIndex} error: ${err?.message ?? err}`,
-          500
-        )
+        new Error(`Worker ${workerIndex} error: ${err?.message ?? err}`)
       );
     }
     this.pending.clear();
@@ -77,8 +71,7 @@ export class WorkerPool<T, R> {
 
   // Map all items using a round-robin distribution across workers
   async mapAll(items: T[]): Promise<R[]> {
-    if (!Array.isArray(items))
-      throw new ResponseError("Items must be an array", 400);
+    if (!Array.isArray(items)) throw new Error("Items must be an array");
     const results: R[] = new Array(items.length);
 
     const workerCount = this.workers.length;

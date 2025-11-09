@@ -1,5 +1,3 @@
-import { ResponseError } from "../error-handling";
-
 /**
  * Event callback type for channel send event.
  * @template T - Type of the value sent through the channel.
@@ -38,7 +36,7 @@ export class Channel<T> {
    */
   public async send(value: T): Promise<void> {
     if (this.closed) {
-      throw new ResponseError("Channel is closed", 500);
+      throw new Error("Channel is closed");
     }
     if (this.receivers.length > 0) {
       const receiver = this.receivers.shift()!;
@@ -62,7 +60,7 @@ export class Channel<T> {
       return this.queue.shift()!;
     }
     if (this.closed) {
-      throw new ResponseError("Channel is closed", 500);
+      throw new Error("Channel is closed");
     }
     return await new Promise<T>((resolve) => {
       this.receivers.push(resolve);
