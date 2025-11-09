@@ -1,5 +1,4 @@
 import { ZodUser } from "@/entities/user.entity";
-import z from "zod";
 
 export const ZodUserCreationDto = ZodUser.omit({ id: true });
 export const ZodUserDto = ZodUser.omit({ password: true });
