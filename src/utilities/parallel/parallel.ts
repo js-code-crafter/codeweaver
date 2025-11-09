@@ -134,11 +134,11 @@ export async function parallelCpuMap<T, R>(
     throw new Error("concurrency must be greater than 0");
   }
 
-  // Worker pool setup
-  const workerPath = path.resolve(__dirname, mapperWorkerFilePath);
-
   // Instantiate a concrete pool
-  const workerPool = new WorkerPool<T, R>(workerPath, concurrencyLevel);
+  const workerPool = new WorkerPool<T, R>(
+    mapperWorkerFilePath,
+    concurrencyLevel
+  );
 
   try {
     // Dispatch all items and collect results in order
