@@ -161,7 +161,7 @@ export default class ProductController {
     }
     const product = await this.get(id);
     if (product != null) {
-      await assign(updateData, product, ZodProduct);
+      await assign(product, updateData, ZodProduct);
       await productCache.delete(updateData.id.toString());
       await productsCache.delete("key");
     } else {

@@ -1,5 +1,6 @@
 import { z, ZodRawShape } from "zod";
 import { ResponseError } from "./error-handling";
+import { parallelMap } from "./parallel/parallel";
 
 /**
  * Helper: normalize and validate a numeric string for integer parsing.
@@ -131,13 +132,11 @@ export async function convert<T1 extends object, T2 extends object>(
   const candidate: any = {};
 
   // Iterate schema keys
-  await Promise.all(
-    keysSchema.map(async (key) => {
-      if ((data as any).hasOwnProperty(key)) {
-        candidate[key] = (data as any)[key];
-      }
-    })
-  );
+  await parallelMap(keysSchema, async (key) => {
+    if ((data as any).hasOwnProperty(key)) {
+      candidate[key] = (data as any)[key];
+    }
+  });
 
   // Validate against the schema
   if (ignoreValidation) {

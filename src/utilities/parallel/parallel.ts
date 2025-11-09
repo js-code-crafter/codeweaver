@@ -3,6 +3,21 @@ import path from "path";
 import { WorkerPool } from "./worker-pool";
 
 /**
+ * Creates a setter function that, when invoked, rebinds the captured
+ * destination binding to the provided source value.
+ *
+ * @template T - The type of both `destination` and `source`, constrained to object types.
+ * @param {T} destination - The destination value (captured by the closure).
+ * @param {T} source - The source value to which `destination` will be rebound when the returned function runs.
+ * @returns {() => void} A function that, when called, rebinds the captured `destination` to `source`.
+ */
+export function set<T extends object>(destination: T, source: T): () => void {
+  return () => {
+    destination = source;
+  };
+}
+
+/**
  * Executes multiple asynchronous or synchronous tasks in parallel and returns their results as an array.
  *
  * @template T The type of the result returned by each task.
@@ -13,7 +28,9 @@ import { WorkerPool } from "./worker-pool";
  * const results = await parallel(
  *   () => fetchUser(1),
  *   () => fetchUser(2),
- *   () => fetchUser(3)
+ *   fetchProduct,
+ *   set(user.id, 1),
+ *   set(user.name, "Bob")
  * );
  * console.log(results); // [user1, user2, user3]
  */
