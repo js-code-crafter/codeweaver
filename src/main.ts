@@ -1,7 +1,7 @@
 import express, { NextFunction, Request, Response } from "express";
 import fs from "fs";
 import path from "path";
-import config from "./config";
+import { config } from "./config";
 import { ResponseError } from "./utilities/error-handling";
 import { resolve } from "./utilities/container";
 import { WinstonLoggerService } from "./utilities/logger/winston-logger.service";

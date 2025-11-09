@@ -2,7 +2,7 @@
 
 ## Overview
 
-**Codeweaver** is an unopinionated microframework built with `Express`, `TypeScript`, and `Zod` (v4), seamlessly integrated with `Swagger` for comprehensive API documentation. Its modular architecture for routers promotes scalability and organized development, making it easy to expand and maintain. Routers are automatically discovered and wired up through a conventional folder structure, simplifying project organization and reducing boilerplate. Routers can be nested, allowing you to compose complex route trees by placing sub-routers inside parent router folders. It also uses `utils-decorators`, a collection of middleware utilities (throttling, caching, and error handling) designed to strengthen application resilience.
+**Codeweaver** is an microframework built with `Express`, `TypeScript`, and `Zod` (v4), seamlessly integrated with `Swagger` for comprehensive API documentation. Its modular architecture for routers promotes scalability and organized development, making it easy to expand and maintain. Routers are automatically discovered and wired up through a conventional folder structure, simplifying project organization and reducing boilerplate. Routers can be nested, allowing you to compose complex route trees by placing sub-routers inside parent router folders. It also uses `utils-decorators`, a collection of middleware utilities (throttling, caching, and error handling) designed to strengthen application resilience.
 
 ## Features and Technologies Used
 

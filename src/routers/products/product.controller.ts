@@ -7,7 +7,7 @@ import {
 } from "./dto/product.dto";
 import { MapAsyncCache } from "@/utilities/cache/memory-cache";
 import { convert, stringToInteger } from "@/utilities/conversion";
-import config from "@/config";
+import { config } from "@/config";
 import { ResponseError } from "@/utilities/error-handling";
 import { products } from "@/db";
 import { Product, ZodProduct } from "@/entities/product.entity";

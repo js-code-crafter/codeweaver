@@ -10,6 +10,7 @@ import {
 } from "./constants";
 import { SwaggerOptions } from "./swagger-options";
 import { stringToBoolean } from "./utilities/conversion";
+import { logger } from "./utilities/logger/logger.config";
 
 /**
  * Main application configuration
@@ -31,7 +32,7 @@ interface Config {
   cacheSize: number;
 }
 
-let config: Config = {
+export const config: Config = {
   devMode: process.env.NODE_ENV !== productionEnvironment,
   http: process.env.HTTP || http,
   port: Number(process.env.PORT) || port,
@@ -66,4 +67,4 @@ let config: Config = {
   cacheSize: Number(process.env.CACHE_SIZE) || cacheSize,
 };
 
-export default config;
+export const container = { logger };

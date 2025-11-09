@@ -2,7 +2,7 @@ import { UserCreationDto, UserDto, ZodUserDto } from "./dto/user.dto";
 import { memoizeAsync, onError, rateLimit, timeout } from "utils-decorators";
 import { ResponseError } from "@/utilities/error-handling";
 import { convert, stringToInteger } from "@/utilities/conversion";
-import config from "@/config";
+import { config } from "@/config";
 import { users } from "@/db";
 import { User, ZodUser } from "@/entities/user.entity";
 import { MapAsyncCache } from "@/utilities/cache/memory-cache";

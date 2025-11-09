@@ -2,7 +2,7 @@ import { memoizeAsync, onError, rateLimit, timeout } from "utils-decorators";
 import { OrderDto, OrderCreationDto, ZodOrderDto } from "./dto/order.dto";
 import { ResponseError } from "@/utilities/error-handling";
 import { convert, stringToInteger } from "@/utilities/conversion";
-import config from "@/config";
+import { config } from "@/config";
 import { orders } from "@/db";
 import { Order, ZodOrder } from "@/entities/order.entity";
 import { MapAsyncCache } from "@/utilities/cache/memory-cache";

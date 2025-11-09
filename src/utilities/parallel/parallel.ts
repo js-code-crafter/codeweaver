@@ -9,7 +9,10 @@ import { WorkerPool } from "./worker-pool";
  * @param {T} source - The source value to which `destination` will be rebound when the returned function runs.
  * @returns {() => void} A function that, when called, rebinds the captured `destination` to `source`.
  */
-export function set<T extends object>(destination: T, source: T): () => void {
+export function set<T extends object>(
+  destination: keyof T,
+  source: keyof T
+): () => void {
   return () => {
     destination = source;
   };
