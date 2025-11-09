@@ -71,9 +71,11 @@ export class WorkerPool<T, R> {
 
   // Map all items using a round-robin distribution across workers
   async mapAll(items: T[]): Promise<R[]> {
-    if (!Array.isArray(items)) throw new Error("Items must be an array");
-    const results: R[] = new Array(items.length);
+    if (!Array.isArray(items)) {
+      throw new TypeError("Items must be an array");
+    }
 
+    const results: R[] = new Array(items.length);
     const workerCount = this.workers.length;
     const tasks: Promise<void>[] = items.map((payload, idx) => {
       const workerIndex = idx % workerCount;

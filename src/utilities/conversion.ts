@@ -11,18 +11,18 @@ function parseIntegerStrict(input: string): number {
 
   // Empty or just sign is invalid
   if (s.length === 0 || s === "+" || s === "-") {
-    throw new Error("Invalid integer");
+    throw new TypeError("Invalid integer");
   }
 
   // Use a regex to ensure the entire string is an optional sign followed by digits
   if (!/^[+-]?\d+$/.test(s)) {
-    throw new Error("Invalid integer");
+    throw new TypeError("Invalid integer");
   }
 
   // Safe parse
   const n = Number(s);
   if (!Number.isSafeInteger(n)) {
-    throw new Error("Integer out of safe range");
+    throw new TypeError("Integer out of safe range");
   }
 
   return n;
@@ -41,7 +41,7 @@ export function stringToInteger(input: string): number {
   try {
     return parseIntegerStrict(input);
   } catch {
-    throw new Error("The input parameter must be a valid integer.");
+    throw new TypeError("The input parameter must be a valid integer.");
   }
 }
 
@@ -68,7 +68,7 @@ export function stringToBoolean(input: string): boolean {
     return false;
   }
 
-  throw new Error(
+  throw new TypeError(
     "The input parameter must be a boolean (e.g., true/false, 1/0)."
   );
 }
@@ -89,12 +89,12 @@ export function stringToNumber(input: string): number {
 
     // Allow finite numbers only
     if (!Number.isFinite(n)) {
-      throw new Error("Invalid number");
+      throw new TypeError("Invalid number");
     }
 
     return n;
   } catch {
-    throw new Error("The input parameter must be a valid number.");
+    throw new TypeError("The input parameter must be a valid number.");
   }
 }
 
