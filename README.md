@@ -351,7 +351,7 @@ Once the application is running, visit the Swagger UI at http://localhost:3000/a
 
 ### Decorators
 
-To prevent abuse of your API, you can utilize throttling, caching, and error handling decorators from the `utils-decorators` packages respectively. This packages provides decorators that can be applied directly to your service and controller classes.
+To prevent abuse of your API, you can utilize throttling, caching, and error handling decorators from the `utils-decorators` package. This package provides decorators that can be applied directly to your service and controller classes.
 
 ### Contributing
 

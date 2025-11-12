@@ -4,15 +4,12 @@ import { WorkerPool } from "./worker-pool";
  * Creates a setter function that, when invoked, rebinds the captured
  * destination binding to the provided source value.
  *
- * @template T - The type of both `destination` and `source`, constrained to object types.
- * @param {T} destination - The destination value (captured by the closure).
- * @param {T} source - The source value to which `destination` will be rebound when the returned function runs.
+ * @template T - The type of both `destination` and `source`.
+ * @param {T} destination - The destination value.
+ * @param {T} source - The source value.
  * @returns {() => void} A function that, when called, rebinds the captured `destination` to `source`.
  */
-export function set<T extends object>(
-  destination: keyof T,
-  source: keyof T
-): () => void {
+export function set<T>(destination: T, source: T): () => void {
   return () => {
     destination = source;
   };
