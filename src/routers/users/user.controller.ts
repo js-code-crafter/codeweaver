@@ -117,7 +117,7 @@ export default class UserController {
   public async get(id: number): Promise<UserDto> {
     const user = users.find((user) => user.id === id);
     if (user == null) {
-      throw new ResponseError("Product not found");
+      throw new ResponseError("User not found");
     }
     return convert(user, ZodUserDto);
   }
