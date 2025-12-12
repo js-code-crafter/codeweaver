@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import asyncHandler from "express-async-handler";
 import ProductController from "./product.controller";
-import { resolve } from "@/utilities/container";
+import { resolve } from "@/core/container";
 
 const router = Router();
 const productController = resolve(ProductController);
@@ -201,6 +201,7 @@ router.delete(
   asyncHandler(async (req: Request, res: Response) => {
     const id = await productController.validateId(req.params.id);
     await productController.delete(id);
+    res.status(204).send();
   })
 );
 

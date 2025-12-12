@@ -1,26 +1,22 @@
-import { memoizeAsync, onError, rateLimit, timeout } from "utils-decorators";
 import {
   ProductCreationDto,
   ProductDto,
   ProductUpdateDto,
   ZodProductDto,
 } from "./dto/product.dto";
-import { MapAsyncCache } from "@/utilities/cache/memory-cache";
-import { convert, stringToInteger } from "@/utilities/conversion";
+import { Invalidate, MapAsyncCache, Memoize } from "@/core/cache";
+import { convert, stringToInteger } from "@/core/helpers";
 import { config } from "@/config";
-import { ResponseError } from "@/utilities/error-handling";
+import { ResponseError } from "@/core/error";
 import { products } from "@/db";
 import { Product, ZodProduct } from "@/entities/product.entity";
-import { Injectable } from "@/utilities/container";
-import assign from "@/utilities/assignment";
-import { parallelMap } from "@/utilities/parallel/parallel";
+import { Injectable } from "@/core/container";
+import { assign } from "@/core/helpers";
+import { parallelMap } from "@/core/parallel";
+import { ErrorHandler, Timeout } from "@/core/middlewares";
+import { RateLimit } from "@/core/rate-limit";
 
-function exceedHandler() {
-  const message = "Too much call in allowed window";
-  throw new ResponseError(message, 429);
-}
-
-function invalidInputHandler(e: ResponseError) {
+async function invalidInputHandler(e: ResponseError) {
   const message = "Invalid input";
   throw new ResponseError(message, 400, e.message);
 }
@@ -37,9 +33,7 @@ const productCache = new MapAsyncCache<ProductDto>(config.cacheSize);
 export default class ProductController {
   // constructor(private readonly productService: ProductService) { }
 
-  @onError({
-    func: invalidInputHandler,
-  })
+  @ErrorHandler(invalidInputHandler)
   /**
    * Validates a string ID and converts it to a number.
    *
@@ -50,9 +44,7 @@ export default class ProductController {
     return stringToInteger(id);
   }
 
-  @onError({
-    func: invalidInputHandler,
-  })
+  @ErrorHandler(invalidInputHandler)
   /**
    * Validates and creates a new Product from the given DTO.
    *
@@ -65,9 +57,7 @@ export default class ProductController {
     return await convert({ ...product, id: products.length + 1 }, ZodProduct);
   }
 
-  @onError({
-    func: invalidInputHandler,
-  })
+  @ErrorHandler(invalidInputHandler)
   /**
    * Validates and creates a new Product from the given DTO.
    *
@@ -80,11 +70,8 @@ export default class ProductController {
     return await convert(product, ZodProduct);
   }
 
-  @rateLimit({
-    timeSpanMs: config.rateLimitTimeSpan,
-    allowedCalls: config.rateLimitAllowedCalls,
-    exceedHandler,
-  })
+  @Invalidate(productsCache)
+  @RateLimit(config.rateLimitTimeSpan, config.rateLimitAllowedCalls)
   /**
    * Creates a new product with validated data
    * @param {Product} product - Product creation data validated by Zod schema
@@ -94,20 +81,11 @@ export default class ProductController {
    */
   public async create(product: Product): Promise<void> {
     products.push(product);
-    await productsCache.delete("key");
   }
 
-  @memoizeAsync({
-    cache: productsCache,
-    keyResolver: () => "key",
-    expirationTimeMs: config.memoizeTime,
-  })
-  @timeout(config.timeout)
-  @rateLimit({
-    timeSpanMs: config.rateLimitTimeSpan,
-    allowedCalls: config.rateLimitAllowedCalls,
-    exceedHandler,
-  })
+  @Memoize(productsCache)
+  @Timeout(config.timeout)
+  @RateLimit(config.rateLimitTimeSpan, config.rateLimitAllowedCalls)
   /**
    * Retrieves all products with truncated descriptions
    * @returns List of products with summarized descriptions
@@ -119,16 +97,8 @@ export default class ProductController {
     );
   }
 
-  @memoizeAsync({
-    cache: productCache,
-    keyResolver: (id: number) => id.toString(),
-    expirationTimeMs: config.memoizeTime,
-  })
-  @rateLimit({
-    timeSpanMs: config.rateLimitTimeSpan,
-    allowedCalls: config.rateLimitAllowedCalls,
-    exceedHandler,
-  })
+  @Memoize(productCache)
+  @RateLimit(config.rateLimitTimeSpan, config.rateLimitAllowedCalls)
   /**
    * Finds a product by its ID
    * @param {number} id - Product ID as string
@@ -142,11 +112,9 @@ export default class ProductController {
     return await convert(product, ZodProduct);
   }
 
-  @rateLimit({
-    timeSpanMs: config.rateLimitTimeSpan,
-    allowedCalls: config.rateLimitAllowedCalls,
-    exceedHandler,
-  })
+  @Invalidate(productCache, false)
+  @Invalidate(productsCache)
+  @RateLimit(config.rateLimitTimeSpan, config.rateLimitAllowedCalls)
   /**
    * Updates an existing product
    * @param {number} id - Product ID to update
@@ -162,18 +130,14 @@ export default class ProductController {
     const product = await this.get(id);
     if (product != null) {
       await assign(product, updateData, ZodProduct);
-      await productCache.delete(updateData.id.toString());
-      await productsCache.delete("key");
     } else {
       throw new ResponseError("Product dose not exist.", 404);
     }
   }
 
-  @rateLimit({
-    timeSpanMs: config.rateLimitTimeSpan,
-    allowedCalls: config.rateLimitAllowedCalls,
-    exceedHandler,
-  })
+  @Invalidate(productCache, false)
+  @Invalidate(productsCache)
+  @RateLimit(config.rateLimitTimeSpan, config.rateLimitAllowedCalls)
   /**
    * Deletes a product by ID
    * @param {number} id - Product ID to delete
@@ -186,8 +150,6 @@ export default class ProductController {
     if (index == -1) {
       throw new ResponseError("Product dose not exist.", 404);
     }
-    await productCache.delete(id.toString());
-    await productsCache.delete("key");
     products.splice(index, 1)[0];
   }
 }

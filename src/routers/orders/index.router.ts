@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import asyncHandler from "express-async-handler";
 import OrderController from "./order.controller";
-import { resolve } from "@/utilities/container";
+import { resolve } from "@/core/container";
 
 const router = Router();
 const orderController = resolve(OrderController);
@@ -97,6 +97,8 @@ router.get(
  *     responses:
  *       200:
  *         description: Order details
+ *       404:
+ *         description: Order not found
  */
 router.get(
   "/:id",
@@ -122,6 +124,8 @@ router.get(
  *     responses:
  *       200:
  *         description: Order canceled successfully
+ *       400:
+ *         description: Cancellation is only available when the order is in processing status.
  */
 router.patch(
   "/:id/cancel",
