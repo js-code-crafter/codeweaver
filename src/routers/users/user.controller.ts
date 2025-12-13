@@ -69,10 +69,9 @@ export default class UserController {
    * @returns {Promise<UserDto[]>} List of users with hidden password fields
    * @throws {ResponseError} 500 - When rate limit exceeded
    */
-  public async getAll(): Promise<UserDto[]> {
-    return await parallelMap(
-      users,
-      async (user) => await convert(user, ZodUserDto)
+  public async getAll(signal?: AbortSignal): Promise<(UserDto | undefined)[]> {
+    return await parallelMap(users, async (user) =>
+      signal?.aborted == false ? await convert(user!, ZodUserDto) : undefined
     );
   }
 

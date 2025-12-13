@@ -1,6 +1,6 @@
 {
   "name": "codeweaver",
-  "version": "3.2.0",
+  "version": "4.0.0",
   "main": "src/main.ts",
   "bin": {
     "codeweaver": "command.js"

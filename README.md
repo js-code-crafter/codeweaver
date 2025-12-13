@@ -2,20 +2,26 @@
 
 ## Overview
 
-**Codeweaver** is an microframework built with `Express`, `TypeScript`, and `Zod` (v4), seamlessly integrated with `Swagger` for comprehensive API documentation. Its modular architecture for routers promotes scalability and organized development, making it easy to expand and maintain. Routers are automatically discovered and wired up through a conventional folder structure, simplifying project organization and reducing boilerplate. Routers can be nested, allowing you to compose complex route trees by placing sub-routers inside parent router folders. It also uses `utils-decorators`, a collection of middleware utilities (throttling, caching, and error handling) designed to strengthen application resilience.
+**Codeweaver** is an microframework built with `Express`, `TypeScript`. Its modular architecture for routers promotes scalability and organized development, making it easy to expand and maintain. Routers are automatically discovered and wired up through a conventional folder structure, simplifying project organization and reducing boilerplate. Routers can be nested, allowing you to compose complex route trees by placing sub-routers inside parent router folders.
 
 ## Features and Technologies Used
 
-- **Node.js**
-- **Express**: A lightweight web framework for building server-side applications in Node.js.
-- **TypeScript**: Adds strong typing for enhanced development experience and reduced runtime errors.
 - **Modular Router Structure**: Automates importing and mounting routers, ensuring a clean separation of endpoints and logic for easier scalability.
-- **Dependency resolver**: A simple dependency resolver that uses a lightweight container to manage and inject dependencies at runtime.
 - **Swagger Integration**: Automatically generates interactive API documentation, facilitating easier understanding of available endpoints for developers and consumers.
-- **Async Handlers**: Utilizes async/await syntax for cleaner, more maintainable asynchronous code without callback nesting.
-- **Zod**: Implements schema validation for input data.
-- **Utils-decorators**: A collection of middleware utilities utils-decorators (throttling, caching, and error handling) designed to strengthen application resilience.
+- **Dependency resolver**: A simple dependency resolver that uses a lightweight container to manage and inject dependencies at runtime.
 - **Logger**: A Winston-based logger (with LogForm) that provides scalable, leveled logging, structured JSON output, and pluggable transports (console and file)
+- **AWS integrations**: API Gateway, Lambda, S3, SNS, SES, SQS, and DynamoDB adapters
+- **IO**: Reading, writing JSON and YAML
+- **Messaging**: Kafka, RabbitMQ, BullMQ adapters
+- **Parallelism**: Channel, Worker-pool
+- **Decorators and Middlewares**:
+  - Caching: Memory and Redis backends
+  - Rate limiting, Retry, Debounce, Timeout
+  - Guard (authentication/authorization)
+  - Before/After hooks
+  - Memoization
+  - Logging: Winston-based, LogForm, structured JSON, pluggable transports
+  - Error handling: Centralized error types and handlers
 
 Here's a revised Installation section that explicitly supports pnpm in addition to npm. I kept the formatting and steps intact, adding clear pnpm equivalents.
 
@@ -101,7 +107,7 @@ Example of a basic router:
 import { Router, Request, Response } from "express";
 import asyncHandler from "express-async-handler";
 import UserController from "./user.controller";
-import { resolve } from "@/utilities/container";
+import { resolve } from "@/core/container";
 
 const router = Router();
 const userController = resolve(UserController);
@@ -211,28 +217,23 @@ Here’s a brief breakdown of key components used in the `UserController`:
 
 ```typescript
 import { UserCreationDto, UserDto, ZodUserDto } from "./dto/user.dto";
-import { memoizeAsync, onError, rateLimit, timeout } from "utils-decorators";
-import { ResponseError } from "@/utilities/error-handling";
-import { convert, stringToInteger } from "@/utilities/conversion";
+import { ResponseError } from "@/core/error";
+import { convert, stringToInteger } from "@/core/helpers";
 import { config } from "@/config";
 import { users } from "@/db";
 import { User, ZodUser } from "@/entities/user.entity";
-import { MapAsyncCache } from "@/utilities/cache/memory-cache";
-import { Injectable } from "@/utilities/container";
-import { parallelMap } from "@/utilities/parallel/parallel";
+import { Invalidate, MapAsyncCache, Memoize } from "@/core/cache";
+import { Injectable } from "@/core/container";
+import { parallelMap } from "@/core/parallel";
+import { ErrorHandler, LogMethod, Timeout } from "@/core/middlewares";
+import { RateLimit } from "@/core/rate-limit";
 
-function exceedHandler() {
-  const message = "Too much call in allowed window";
-  throw new ResponseError(message, 429);
-}
-
-function invalidInputHandler(e: ResponseError) {
+async function invalidInputHandler(e: ResponseError) {
   const message = "Invalid input";
   throw new ResponseError(message, 400, e?.message);
 }
 
 const usersCache = new MapAsyncCache<UserDto[]>(config.cacheSize);
-const userCache = new MapAsyncCache<UserDto>(config.cacheSize);
 
 @Injectable()
 /**
@@ -243,9 +244,7 @@ const userCache = new MapAsyncCache<UserDto>(config.cacheSize);
 export default class UserController {
   // constructor(private readonly userService: UserService) { }
 
-  @onError({
-    func: invalidInputHandler,
-  })
+  @ErrorHandler(invalidInputHandler)
   /**
    * Validates a string ID and converts it to a number.
    *
@@ -256,9 +255,7 @@ export default class UserController {
     return stringToInteger(id);
   }
 
-  @onError({
-    func: invalidInputHandler,
-  })
+  @ErrorHandler(invalidInputHandler)
   /**
    * Validates and creates a new User from the given DTO.
    *
@@ -269,11 +266,8 @@ export default class UserController {
     return await convert(user, ZodUser);
   }
 
-  @rateLimit({
-    timeSpanMs: config.rateLimitTimeSpan,
-    allowedCalls: config.rateLimitAllowedCalls,
-    exceedHandler,
-  })
+  @Invalidate(usersCache)
+  @RateLimit(config.rateLimitTimeSpan, config.rateLimitAllowedCalls)
   /**
    * Create a new user
    * @param {User} user - User creation data validated by Zod schema
@@ -283,42 +277,24 @@ export default class UserController {
    */
   public async create(user: User): Promise<void> {
     users.push(user);
-    await usersCache.delete("key");
   }
 
-  @memoizeAsync({
-    cache: usersCache,
-    keyResolver: () => "key",
-    expirationTimeMs: config.memoizeTime,
-  })
-  @timeout(config.timeout)
-  @rateLimit({
-    timeSpanMs: config.rateLimitTimeSpan,
-    allowedCalls: config.rateLimitAllowedCalls,
-    exceedHandler,
-  })
+  @Memoize(usersCache)
+  @Timeout(config.timeout)
+  @RateLimit(config.rateLimitTimeSpan, config.rateLimitAllowedCalls)
   /**
    * Get all users
    * @returns {Promise<UserDto[]>} List of users with hidden password fields
    * @throws {ResponseError} 500 - When rate limit exceeded
    */
-  public async getAll(): Promise<UserDto[]> {
-    return await parallelMap(
-      users,
-      async (user) => await convert(user, ZodUserDto)
+  public async getAll(signal?: AbortSignal): Promise<(UserDto | undefined)[]> {
+    return await parallelMap(users, async (user) =>
+      signal?.aborted == false ? await convert(user!, ZodUserDto) : undefined
     );
   }
 
-  @memoizeAsync({
-    cache: userCache,
-    keyResolver: (id: number) => id.toString(),
-    expirationTimeMs: config.memoizeTime,
-  })
-  @rateLimit({
-    timeSpanMs: config.rateLimitTimeSpan,
-    allowedCalls: config.rateLimitAllowedCalls,
-    exceedHandler,
-  })
+  @Memoize(usersCache)
+  @RateLimit(config.rateLimitTimeSpan, config.rateLimitAllowedCalls)
   /**
    * Get user by ID
    * @param {number} id - User ID as string
@@ -329,7 +305,7 @@ export default class UserController {
   public async get(id: number): Promise<UserDto> {
     const user = users.find((user) => user.id === id);
     if (user == null) {
-      throw new ResponseError("Product not found");
+      throw new ResponseError("User not found");
     }
     return convert(user, ZodUserDto);
   }
