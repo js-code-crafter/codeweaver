@@ -1,8 +1,8 @@
-# A lightweight framework built on top of Express and TypeScript
+# Codeweaver
 
 ## Overview
 
-**Codeweaver** is an microframework built with `Express`, `TypeScript`. Its modular architecture for routers promotes scalability and organized development, making it easy to expand and maintain. Routers are automatically discovered and wired up through a conventional folder structure, simplifying project organization and reducing boilerplate. Routers can be nested, allowing you to compose complex route trees by placing sub-routers inside parent router folders.
+**Codeweaver** is a lightweight framework and boilerplate built on top of `Express` and `TypeScript`. Its modular architecture for routers promotes scalability and organized development, making it easy to expand and maintain. Routers are automatically discovered and wired up through a conventional folder structure, simplifying project organization and reducing boilerplate. Routers can be nested, allowing you to compose complex route trees by placing sub-routers inside parent router folders.
 
 ## Features and Technologies Used
 
@@ -52,6 +52,14 @@ To get started with the project, follow these steps:
    ```
 
 3. **Run the application**:
+
+   Using pnpm:
+
+   ```bash
+   pnpm start
+   ```
+
+   Using npm:
 
    ```bash
    npm start
@@ -289,7 +297,9 @@ export default class UserController {
    */
   public async getAll(signal?: AbortSignal): Promise<(UserDto | undefined)[]> {
     return await parallelMap(users, async (user) =>
-      signal?.aborted == false ? await convert(user!, ZodUserDto) : undefined
+      signal?.aborted == false
+        ? await convert<User, UserDto>(user!, ZodUserDto)
+        : null
     );
   }
 
@@ -313,18 +323,6 @@ export default class UserController {
 ```
 
 This structure not only supports effective code organization but also ensures that each part of the application is working towards the same goal: a scalable, maintainable, and robust API.
-
-### Async Handlers
-
-To maintain cleaner code and improve error handling, the app suggests the `express-async-handler` package that automatically catches exceptions inside of async express routes and passing them to the express error handlers. This allows you to focus on writing the business logic without worrying about try/catch blocks.
-
-### API Documentation
-
-Once the application is running, visit the Swagger UI at http://localhost:3000/api-docs. This automatically generated documentation will provide you with all available routes along with details on request parameters, response structures, and possible error codes.
-
-### Decorators
-
-To prevent abuse of your API, you can utilize throttling, caching, and error handling decorators from the `utils-decorators` package. This package provides decorators that can be applied directly to your service and controller classes.
 
 ### Contributing
 
