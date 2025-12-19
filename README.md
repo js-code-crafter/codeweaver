@@ -69,6 +69,15 @@ To get started with the project, follow these steps:
 
 5. **Build**: Compile the TypeScript files for the production environment:
 
+   Using pnpm:
+
+   ```bash
+   pnpm run build
+   pnpm run serve
+   ```
+
+   Using npm:
+
    ```bash
    npm run build
    npm run serve
