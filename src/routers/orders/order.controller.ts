@@ -1,20 +1,21 @@
-import { memoizeAsync, onError, rateLimit, timeout } from "utils-decorators";
 import { OrderDto, OrderCreationDto, ZodOrderDto } from "./dto/order.dto";
-import { ResponseError } from "@/utilities/error-handling";
-import { convert, stringToInteger } from "@/utilities/conversion";
+import { ResponseError } from "@/core/error";
+import { convert, stringToInteger } from "@/core/helpers";
 import { config } from "@/config";
 import { orders } from "@/db";
 import { Order, ZodOrder } from "@/entities/order.entity";
-import { MapAsyncCache } from "@/utilities/cache/memory-cache";
-import { Injectable } from "@/utilities/container";
-import { parallelMap } from "@/utilities/parallel/parallel";
+import { Invalidate, MapAsyncCache, Memoize } from "@/core/cache";
+import { Injectable } from "@/core/container";
+import { parallelMap } from "@/core/parallel";
+import { RateLimit } from "@/core/rate-limit";
+import { ErrorHandler, Timeout } from "@/core/middlewares";
 
-function exceedHandler() {
+async function exceedHandler() {
   const message = "Too much call in allowed window";
   throw new ResponseError(message, 429);
 }
 
-function invalidInputHandler(e: ResponseError) {
+async function invalidInputHandler(e: ResponseError) {
   const message = "Invalid input";
   throw new ResponseError(message, 400, e.message);
 }
@@ -31,9 +32,7 @@ const orderCache = new MapAsyncCache<OrderDto>(config.cacheSize);
 export default class OrderController {
   // constructor(private readonly orderService: OrderService) { }
 
-  @onError({
-    func: invalidInputHandler,
-  })
+  @ErrorHandler(invalidInputHandler)
   /**
    * Validates a string ID and converts it to a number.
    *
@@ -44,9 +43,7 @@ export default class OrderController {
     return stringToInteger(id);
   }
 
-  @onError({
-    func: invalidInputHandler,
-  })
+  @ErrorHandler(invalidInputHandler)
   /**
    * Validates and creates a new Order from the given DTO.
    *
@@ -66,11 +63,12 @@ export default class OrderController {
     return convert(newOrder, ZodOrder);
   }
 
-  @rateLimit({
-    timeSpanMs: config.rateLimitTimeSpan,
-    allowedCalls: config.rateLimitAllowedCalls,
-    exceedHandler,
-  })
+  @Invalidate(ordersCache)
+  @RateLimit(
+    config.rateLimitTimeSpan,
+    config.rateLimitAllowedCalls,
+    exceedHandler
+  )
   /**
    * Create a new order
    * @param {Order} order - Order creation data
@@ -80,20 +78,15 @@ export default class OrderController {
    */
   public async create(order: Order): Promise<void> {
     orders.push(order);
-    await ordersCache.delete("key");
   }
 
-  @memoizeAsync({
-    cache: ordersCache,
-    keyResolver: () => "key",
-    expirationTimeMs: config.memoizeTime,
-  })
-  @timeout(config.timeout)
-  @rateLimit({
-    timeSpanMs: config.rateLimitTimeSpan,
-    allowedCalls: config.rateLimitAllowedCalls,
-    exceedHandler,
-  })
+  @Memoize(orderCache)
+  @Timeout(config.timeout)
+  @RateLimit(
+    config.rateLimitTimeSpan,
+    config.rateLimitAllowedCalls,
+    exceedHandler
+  )
   /**
    * Retrieves all orders
    * @returns List of orders
@@ -105,16 +98,12 @@ export default class OrderController {
     );
   }
 
-  @memoizeAsync({
-    cache: orderCache,
-    keyResolver: (id: number) => id.toString(),
-    expirationTimeMs: config.memoizeTime,
-  })
-  @rateLimit({
-    timeSpanMs: config.rateLimitTimeSpan,
-    allowedCalls: config.rateLimitAllowedCalls,
-    exceedHandler,
-  })
+  @Memoize(orderCache)
+  @RateLimit(
+    config.rateLimitTimeSpan,
+    config.rateLimitAllowedCalls,
+    exceedHandler
+  )
   /**
    * Finds an order by its ID
    * @param {number} id - Order ID as string
@@ -128,11 +117,13 @@ export default class OrderController {
     return await convert(order, ZodOrder);
   }
 
-  @rateLimit({
-    timeSpanMs: config.rateLimitTimeSpan,
-    allowedCalls: config.rateLimitAllowedCalls,
-    exceedHandler,
-  })
+  @Invalidate(orderCache, false)
+  @Invalidate(ordersCache)
+  @RateLimit(
+    config.rateLimitTimeSpan,
+    config.rateLimitAllowedCalls,
+    exceedHandler
+  )
   /**
    * Cancel an existing order
    * @param {number} id - Order ID to cancel
@@ -145,21 +136,20 @@ export default class OrderController {
     if (order.status != "Processing") {
       throw new ResponseError(
         "Cancellation is not available unless the order is in processing status.",
-        400
+        409
       );
     }
     order.status = "Canceled";
     order.deliveredAt = new Date();
-
-    await orderCache.delete(id.toString());
-    await ordersCache.delete("key");
   }
 
-  @rateLimit({
-    timeSpanMs: config.rateLimitTimeSpan,
-    allowedCalls: config.rateLimitAllowedCalls,
-    exceedHandler,
-  })
+  @Invalidate(orderCache, false)
+  @Invalidate(ordersCache)
+  @RateLimit(
+    config.rateLimitTimeSpan,
+    config.rateLimitAllowedCalls,
+    exceedHandler
+  )
   /**
    * Mark an order as delivered
    * @param {number} id - Order ID to mark as delivered
@@ -172,13 +162,10 @@ export default class OrderController {
     if (order.status != "Processing") {
       throw new ResponseError(
         "Delivery is only available when the order is in processing status.",
-        400
+        409
       );
     }
     order.status = "Delivered";
     order.deliveredAt = new Date();
-
-    await orderCache.delete(id.toString());
-    await ordersCache.delete("key");
   }
 }

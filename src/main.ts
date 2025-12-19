@@ -1,17 +1,16 @@
 import express, { NextFunction, Request, Response } from "express";
 import fs from "fs";
 import path from "path";
-import { config } from "./config";
-import { ResponseError } from "./utilities/error-handling";
-import { resolve } from "./utilities/container";
-import { WinstonLoggerService } from "./utilities/logger/winston-logger.service";
 import "dotenv/config";
 import {
   defaultRouter,
   routerDir,
   routerExtension,
   swaggerPath,
-} from "./constants";
+} from "@/constants";
+import { config } from "@/config";
+import { ResponseError } from "@/core/error";
+import { logger } from "@/core/logger";
 //import cors from "cors";
 
 /**
@@ -68,7 +67,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Automatically import all routers from the /src/routers directory
+//Automatically import all routers from the /src/routers directory
 const routersPath = path.join(__dirname, routerDir);
 loadRouters(routersPath);
 
@@ -82,8 +81,7 @@ if (config.swagger) {
 
 // General error handler
 app.use(
-  (error: ResponseError, req: Request, res: Response, next: NextFunction) => {
-    const logger = resolve(WinstonLoggerService);
+  (error: ResponseError, _req: Request, res: Response, _next: NextFunction) => {
     const status = error.status ?? 500;
     const errorObject = {
       status,

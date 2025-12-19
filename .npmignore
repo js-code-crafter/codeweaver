@@ -3,5 +3,6 @@ dist
 package-lock.json
 logs
 .vscode
+src/routers/test
 pnpm-lock.yaml
 .env

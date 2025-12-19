@@ -10,3 +10,4 @@ export const swaggerPath = "/api-docs";
 export const routerDir = "/routers";
 export const routerExtension = ".router";
 export const defaultRouter = "index";
+export const debounceTimeSpan = 10;

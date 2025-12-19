@@ -7,10 +7,10 @@ import {
   port,
   cacheSize,
   http,
-} from "./constants";
+  debounceTimeSpan,
+} from "@/constants";
 import { SwaggerOptions } from "./swagger-options";
-import { stringToBoolean } from "./utilities/conversion";
-import { logger } from "./utilities/logger/logger.config";
+import { stringToBoolean } from "@/core/helpers/conversion";
 
 /**
  * Main application configuration
@@ -20,16 +20,18 @@ import { logger } from "./utilities/logger/logger.config";
  * @property {SwaggerOptions} swaggerOptions - Swagger configuration
  */
 interface Config {
-  devMode: boolean;
-  http: string;
-  port: number;
-  swagger: boolean;
-  swaggerOptions: SwaggerOptions;
-  timeout: number;
-  rateLimitTimeSpan: number;
-  rateLimitAllowedCalls: number;
-  memoizeTime: number;
-  cacheSize: number;
+  readonly devMode: boolean;
+  readonly http: string;
+  readonly port: number;
+  readonly swagger: boolean;
+  readonly swaggerOptions: SwaggerOptions;
+  readonly timeout: number;
+  readonly rateLimitTimeSpan: number;
+  readonly rateLimitAllowedCalls: number;
+  readonly memoizeTime: number;
+  readonly cacheSize: number;
+  readonly jwtSecretKey: string;
+  readonly debounceTimeSpan: number;
 }
 
 export const config: Config = {
@@ -65,6 +67,6 @@ export const config: Config = {
     Number(process.env.RATE_LIMIT_ALLOWED_CALLS) || rateLimitAllowedCalls,
   memoizeTime: Number(process.env.MEMOIZE_TIME) || memoizeTime,
   cacheSize: Number(process.env.CACHE_SIZE) || cacheSize,
+  jwtSecretKey: process.env.JWT_SECRET_KEY!,
+  debounceTimeSpan: Number(process.env.DEBOUNCE_TIME_SPAN) || debounceTimeSpan,
 };
-
-export const container = { logger };

@@ -1,26 +1,21 @@
 import { UserCreationDto, UserDto, ZodUserDto } from "./dto/user.dto";
-import { memoizeAsync, onError, rateLimit, timeout } from "utils-decorators";
-import { ResponseError } from "@/utilities/error-handling";
-import { convert, stringToInteger } from "@/utilities/conversion";
+import { ResponseError } from "@/core/error";
+import { convert, stringToInteger } from "@/core/helpers";
 import { config } from "@/config";
 import { users } from "@/db";
 import { User, ZodUser } from "@/entities/user.entity";
-import { MapAsyncCache } from "@/utilities/cache/memory-cache";
-import { Injectable } from "@/utilities/container";
-import { parallelMap } from "@/utilities/parallel/parallel";
+import { Invalidate, MapAsyncCache, Memoize } from "@/core/cache";
+import { Injectable } from "@/core/container";
+import { parallelMap } from "@/core/parallel";
+import { ErrorHandler, LogMethod, Timeout } from "@/core/middlewares";
+import { RateLimit } from "@/core/rate-limit";
 
-function exceedHandler() {
-  const message = "Too much call in allowed window";
-  throw new ResponseError(message, 429);
-}
-
-function invalidInputHandler(e: ResponseError) {
+async function invalidInputHandler(e: ResponseError) {
   const message = "Invalid input";
   throw new ResponseError(message, 400, e?.message);
 }
 
 const usersCache = new MapAsyncCache<UserDto[]>(config.cacheSize);
-const userCache = new MapAsyncCache<UserDto>(config.cacheSize);
 
 @Injectable()
 /**
@@ -31,9 +26,7 @@ const userCache = new MapAsyncCache<UserDto>(config.cacheSize);
 export default class UserController {
   // constructor(private readonly userService: UserService) { }
 
-  @onError({
-    func: invalidInputHandler,
-  })
+  @ErrorHandler(invalidInputHandler)
   /**
    * Validates a string ID and converts it to a number.
    *
@@ -44,9 +37,7 @@ export default class UserController {
     return stringToInteger(id);
   }
 
-  @onError({
-    func: invalidInputHandler,
-  })
+  @ErrorHandler(invalidInputHandler)
   /**
    * Validates and creates a new User from the given DTO.
    *
@@ -57,11 +48,8 @@ export default class UserController {
     return await convert(user, ZodUser);
   }
 
-  @rateLimit({
-    timeSpanMs: config.rateLimitTimeSpan,
-    allowedCalls: config.rateLimitAllowedCalls,
-    exceedHandler,
-  })
+  @Invalidate(usersCache)
+  @RateLimit(config.rateLimitTimeSpan, config.rateLimitAllowedCalls)
   /**
    * Create a new user
    * @param {User} user - User creation data validated by Zod schema
@@ -71,42 +59,26 @@ export default class UserController {
    */
   public async create(user: User): Promise<void> {
     users.push(user);
-    await usersCache.delete("key");
   }
 
-  @memoizeAsync({
-    cache: usersCache,
-    keyResolver: () => "key",
-    expirationTimeMs: config.memoizeTime,
-  })
-  @timeout(config.timeout)
-  @rateLimit({
-    timeSpanMs: config.rateLimitTimeSpan,
-    allowedCalls: config.rateLimitAllowedCalls,
-    exceedHandler,
-  })
+  @Memoize(usersCache)
+  @Timeout(config.timeout)
+  @RateLimit(config.rateLimitTimeSpan, config.rateLimitAllowedCalls)
   /**
    * Get all users
    * @returns {Promise<UserDto[]>} List of users with hidden password fields
    * @throws {ResponseError} 500 - When rate limit exceeded
    */
-  public async getAll(): Promise<UserDto[]> {
-    return await parallelMap(
-      users,
-      async (user) => await convert(user, ZodUserDto)
+  public async getAll(signal?: AbortSignal): Promise<(UserDto | null)[]> {
+    return await parallelMap(users, async (user) =>
+      signal?.aborted == false
+        ? await convert<User, UserDto>(user!, ZodUserDto)
+        : null
     );
   }
 
-  @memoizeAsync({
-    cache: userCache,
-    keyResolver: (id: number) => id.toString(),
-    expirationTimeMs: config.memoizeTime,
-  })
-  @rateLimit({
-    timeSpanMs: config.rateLimitTimeSpan,
-    allowedCalls: config.rateLimitAllowedCalls,
-    exceedHandler,
-  })
+  @Memoize(usersCache)
+  @RateLimit(config.rateLimitTimeSpan, config.rateLimitAllowedCalls)
   /**
    * Get user by ID
    * @param {number} id - User ID as string
