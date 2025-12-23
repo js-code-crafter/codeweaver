@@ -250,7 +250,8 @@ async function invalidInputHandler(e: ResponseError) {
   throw new ResponseError(message, 400, e?.message);
 }
 
-const usersCache = new MapAsyncCache<UserDto[]>(config.cacheSize);
+const userCache = new MapAsyncCache<UserDto>(config.cacheSize);
+const usersCache = new MapAsyncCache<UserDto[]>(1);
 
 @Injectable()
 /**
@@ -283,7 +284,7 @@ export default class UserController {
     return await convert(user, ZodUser);
   }
 
-  @Invalidate(usersCache)
+  @Invalidate(usersCache, true)
   @RateLimit(config.rateLimitTimeSpan, config.rateLimitAllowedCalls)
   /**
    * Create a new user
@@ -296,7 +297,7 @@ export default class UserController {
     users.push(user);
   }
 
-  @Memoize(usersCache)
+  @Memoize(usersCache, () => "key")
   @Timeout(config.timeout)
   @RateLimit(config.rateLimitTimeSpan, config.rateLimitAllowedCalls)
   /**
@@ -304,21 +305,23 @@ export default class UserController {
    * @returns {Promise<UserDto[]>} List of users with hidden password fields
    * @throws {ResponseError} 500 - When rate limit exceeded
    */
-  public async getAll(signal?: AbortSignal): Promise<(UserDto | undefined)[]> {
+  public async getAll(
+    timeoutSignal?: AbortSignal
+  ): Promise<(UserDto | null)[]> {
     return await parallelMap(users, async (user) =>
-      signal?.aborted == false
+      timeoutSignal?.aborted == false
         ? await convert<User, UserDto>(user!, ZodUserDto)
         : null
     );
   }
 
-  @Memoize(usersCache)
+  @Memoize(userCache)
   @RateLimit(config.rateLimitTimeSpan, config.rateLimitAllowedCalls)
   /**
    * Get user by ID
    * @param {number} id - User ID as string
    * @returns {Promise<UserDto>} User details or error object
-   * @throws {ResponseError} 404 - User not found
+   * @throws {ResponseError} 404 - User not fou
    * @throws {ResponseError} 400 - Invalid ID format
    */
   public async get(id: number): Promise<UserDto> {
