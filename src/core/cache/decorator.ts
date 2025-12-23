@@ -53,7 +53,7 @@ export function Memoize<Entity, MethodArgs extends any[] = any[]>(
  */
 export function Invalidate<Entity>(
   cache: AsyncCache<Entity>,
-  shouldClearAll: boolean = true
+  shouldClearAll: boolean = false
 ) {
   return createMethodDecorator<
     [AsyncCache<Entity>, boolean | true],

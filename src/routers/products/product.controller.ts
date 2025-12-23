@@ -21,7 +21,7 @@ async function invalidInputHandler(e: ResponseError) {
   throw new ResponseError(message, 400, e.message);
 }
 
-const productsCache = new MapAsyncCache<ProductDto[]>(config.cacheSize);
+const productsCache = new MapAsyncCache<ProductDto[]>(1);
 const productCache = new MapAsyncCache<ProductDto>(config.cacheSize);
 
 @Injectable()
@@ -70,7 +70,7 @@ export default class ProductController {
     return await convert(product, ZodProduct);
   }
 
-  @Invalidate(productsCache)
+  @Invalidate(productsCache, true)
   @RateLimit(config.rateLimitTimeSpan, config.rateLimitAllowedCalls)
   /**
    * Creates a new product with validated data
@@ -83,17 +83,20 @@ export default class ProductController {
     products.push(product);
   }
 
-  @Memoize(productsCache)
+  @Memoize(productsCache, () => "key")
   @Timeout(config.timeout)
   @RateLimit(config.rateLimitTimeSpan, config.rateLimitAllowedCalls)
   /**
    * Retrieves all products with truncated descriptions
    * @returns List of products with summarized descriptions
    */
-  public async getAll(): Promise<ProductDto[]> {
-    return await parallelMap(
-      products,
-      async (product) => await convert(product, ZodProductDto)
+  public async getAll(
+    timeoutSignal?: AbortSignal
+  ): Promise<(ProductDto | null)[]> {
+    return await parallelMap(products, async (product) =>
+      timeoutSignal?.aborted == false
+        ? await convert<Product, ProductDto>(product, ZodProductDto)
+        : null
     );
   }
 
@@ -112,8 +115,8 @@ export default class ProductController {
     return await convert(product, ZodProduct);
   }
 
-  @Invalidate(productCache, false)
-  @Invalidate(productsCache)
+  @Invalidate(productCache)
+  @Invalidate(productsCache, true)
   @RateLimit(config.rateLimitTimeSpan, config.rateLimitAllowedCalls)
   /**
    * Updates an existing product
@@ -135,8 +138,8 @@ export default class ProductController {
     }
   }
 
-  @Invalidate(productCache, false)
-  @Invalidate(productsCache)
+  @Invalidate(productCache)
+  @Invalidate(productsCache, true)
   @RateLimit(config.rateLimitTimeSpan, config.rateLimitAllowedCalls)
   /**
    * Deletes a product by ID

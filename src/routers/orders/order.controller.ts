@@ -20,7 +20,7 @@ async function invalidInputHandler(e: ResponseError) {
   throw new ResponseError(message, 400, e.message);
 }
 
-const ordersCache = new MapAsyncCache<OrderDto[]>(config.cacheSize);
+const ordersCache = new MapAsyncCache<OrderDto[]>(1);
 const orderCache = new MapAsyncCache<OrderDto>(config.cacheSize);
 
 @Injectable()
@@ -63,7 +63,7 @@ export default class OrderController {
     return convert(newOrder, ZodOrder);
   }
 
-  @Invalidate(ordersCache)
+  @Invalidate(ordersCache, true)
   @RateLimit(
     config.rateLimitTimeSpan,
     config.rateLimitAllowedCalls,
@@ -80,7 +80,7 @@ export default class OrderController {
     orders.push(order);
   }
 
-  @Memoize(orderCache)
+  @Memoize(ordersCache, () => "key")
   @Timeout(config.timeout)
   @RateLimit(
     config.rateLimitTimeSpan,
@@ -91,10 +91,13 @@ export default class OrderController {
    * Retrieves all orders
    * @returns List of orders
    */
-  public async getAll(): Promise<OrderDto[]> {
-    return await parallelMap(
-      orders,
-      async (order) => await convert(order, ZodOrderDto)
+  public async getAll(
+    timeoutSignal?: AbortSignal
+  ): Promise<(OrderDto | null)[]> {
+    return await parallelMap(orders, async (order) =>
+      timeoutSignal?.aborted == false
+        ? await convert<Order, OrderDto>(order, ZodOrderDto)
+        : null
     );
   }
 
@@ -117,8 +120,8 @@ export default class OrderController {
     return await convert(order, ZodOrder);
   }
 
-  @Invalidate(orderCache, false)
-  @Invalidate(ordersCache)
+  @Invalidate(orderCache)
+  @Invalidate(ordersCache, true)
   @RateLimit(
     config.rateLimitTimeSpan,
     config.rateLimitAllowedCalls,
@@ -143,8 +146,8 @@ export default class OrderController {
     order.deliveredAt = new Date();
   }
 
-  @Invalidate(orderCache, false)
-  @Invalidate(ordersCache)
+  @Invalidate(orderCache)
+  @Invalidate(ordersCache, true)
   @RateLimit(
     config.rateLimitTimeSpan,
     config.rateLimitAllowedCalls,
